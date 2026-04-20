@@ -20,6 +20,7 @@
 - Integration tests for filesystem/locking/journal.
 - E2E tests for MCP tool flows.
 - Property-based tests for sedimentation invariants.
+- Ensure property-based suite runs in CI (Hypothesis available in test environment).
 
 ## Phase 4: Ops Readiness
 - Structured logs and audit trail.

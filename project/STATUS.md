@@ -34,6 +34,7 @@
 - structured `tools/call` responses (`result.data` / `result.error`) replacing string payload parsing
 - per-tool telemetry recorder with counters and duration aggregates
 - `get_metrics` tool for runtime telemetry snapshot
+- property-based tests for `metabolize` invariants (Hypothesis-backed)
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -42,7 +43,8 @@
 ## Validation
 - Command: `pytest -q`
 - Result: `20 passed`
+  - Property-based suite is auto-skipped when `hypothesis` is unavailable.
 
 ## Next
-- introduce property-based tests for metabolize invariants.
 - add tool-level tracing correlation IDs across journal + telemetry.
+- enforce Hypothesis in CI dev environment to execute property suite on every run.

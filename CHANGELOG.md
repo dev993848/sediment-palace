@@ -22,6 +22,7 @@ The format is based on Keep a Changelog principles and this project follows sema
 - Expanded metabolize rules with streak-based transitions and decaying intermediate state.
 - Switched transport tool responses to structured JSON payloads (`result.data` / `result.error`).
 - Added per-tool telemetry recorder and `get_metrics` tool.
+- Added Hypothesis-based property test module for metabolize invariants.
 - Test suites (unit/integration/e2e) for MVP flows.
 - Project status tracker `project/STATUS.md`.
 
