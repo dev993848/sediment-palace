@@ -95,3 +95,28 @@ def test_search_move_update_map_flow():
         }
     )
     assert "add_link" in add_link_response["result"]["content"][0]["text"]
+
+
+def test_recover_journal_tool():
+    server = SedimentPalaceServer(project_root=_new_project_root())
+    server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 20,
+            "method": "tools/call",
+            "params": {
+                "name": "write_memory",
+                "arguments": {"layer": "shallow", "path": "ideas/t3", "content": "recover flow"},
+            },
+        }
+    )
+
+    recover_response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 21,
+            "method": "tools/call",
+            "params": {"name": "recover_journal", "arguments": {}},
+        }
+    )
+    assert "recovered_count" in recover_response["result"]["content"][0]["text"]

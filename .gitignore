@@ -12,6 +12,7 @@ Thumbs.db
 # Runtime artifacts
 memory/_System/backups/
 memory/_System/locks/
+memory/_System/journal.log
 memory/02_Sediment/_Graveyard/
 tests/fixtures/work*/
 .tmp/

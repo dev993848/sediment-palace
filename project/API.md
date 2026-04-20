@@ -33,6 +33,10 @@
 - Destructive operation; requires policy approval.
 - Must always emit audit event.
 
+9. `recover_journal()`  `implemented in MVP`
+- Scans operation journal for unresolved operations.
+- Appends recovery completion events with `recovery_status`.
+
 ## Error Model (required fields)
 - `error_code`
 - `message`

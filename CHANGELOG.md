@@ -11,7 +11,10 @@ The format is based on Keep a Changelog principles and this project follows sema
 - Python backend MVP scaffold under `src/sediment_palace`.
 - MCP JSON-RPC server core with tools: `read_map`, `write_memory`, `read_memory`.
 - Extended MCP tools: `search_room`, `move_file`, `update_map`.
+- Added `recover_journal` tool.
 - Domain/frontmatter modules and filesystem repository.
+- Added file lock manager and append-only operation journal.
+- Added atomic write path for mutating repository operations.
 - Test suites (unit/integration/e2e) for MVP flows.
 - Project status tracker `project/STATUS.md`.
 

@@ -109,6 +109,9 @@ class SedimentPalaceServer:
                 )
             response = self.service.update_map(action=action, details=details)
             return str(response)
+        if tool_name == "recover_journal":
+            response = self.service.recover_journal()
+            return str(response)
         raise SedimentPalaceError(
             error_code="tool_not_found",
             message=f"tool not found: {tool_name}",
@@ -181,6 +184,11 @@ class SedimentPalaceServer:
                     },
                     "required": ["action", "details"],
                 },
+            },
+            {
+                "name": "recover_journal",
+                "description": "Recover unresolved operations from operation journal",
+                "inputSchema": {"type": "object", "properties": {}},
             },
         ]
 

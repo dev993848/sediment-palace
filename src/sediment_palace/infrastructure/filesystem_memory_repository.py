@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 from uuid import uuid4
 
 from sediment_palace.domain.errors import SedimentPalaceError
 from sediment_palace.domain.frontmatter import compose_frontmatter, split_frontmatter
 from sediment_palace.domain.models import LayerName, MemoryEntry, utc_now
+from sediment_palace.infrastructure.journal import OperationJournal
+from sediment_palace.infrastructure.lock_manager import FileLockManager
 
 LAYER_DIRS: dict[LayerName, str] = {
     "shallow": "01_Shallow",
@@ -26,11 +29,15 @@ class FileSystemMemoryRepository:
         self.project_root = project_root.resolve()
         self.memory_root = (self.project_root / "memory").resolve()
         self.map_file = self.memory_root / "PALACE_MAP.md"
+        self.system_root = self.memory_root / "_System"
+        self.lock_manager = FileLockManager(lock_root=self.system_root / "locks")
+        self.journal = OperationJournal(path=self.system_root / "journal.log")
 
     def ensure_layout(self) -> None:
         self.memory_root.mkdir(parents=True, exist_ok=True)
         for dirname in LAYER_DIRS.values():
             (self.memory_root / dirname).mkdir(parents=True, exist_ok=True)
+        self.system_root.mkdir(parents=True, exist_ok=True)
         if not self.map_file.exists():
             self.map_file.write_text("# PALACE MAP\n", encoding="utf-8")
 
@@ -49,38 +56,47 @@ class FileSystemMemoryRepository:
         self.ensure_layout()
         target = self._resolve_target(layer=layer, relative_path=path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        now = utc_now()
+        op_id = self.journal.start(
+            "write_memory",
+            {"layer": layer, "path": str(target.relative_to(self.memory_root)).replace("\\", "/")},
+        )
 
-        existing = self._read_entry_if_exists(target)
-        if existing is None:
-            entry = MemoryEntry(
-                entry_id=f"mem_{uuid4().hex[:12]}",
-                layer=layer,
-                created=now,
-                last_touched=now,
-                density=0.2,
-                decay_days=DEFAULT_DECAY_DAYS[layer],
-                tags=tags or [],
-                status="active",
-                source_session=source_session,
-                content=content,
-            )
-        else:
-            entry = MemoryEntry(
-                entry_id=existing.entry_id,
-                layer=layer,
-                created=existing.created,
-                last_touched=now,
-                density=existing.density,
-                decay_days=existing.decay_days,
-                tags=tags if tags is not None else existing.tags,
-                status=existing.status,
-                source_session=source_session or existing.source_session,
-                content=content,
-            )
+        def _action() -> str:
+            now = utc_now()
+            existing = self._read_entry_if_exists(target)
+            if existing is None:
+                entry = MemoryEntry(
+                    entry_id=f"mem_{uuid4().hex[:12]}",
+                    layer=layer,
+                    created=now,
+                    last_touched=now,
+                    density=0.2,
+                    decay_days=DEFAULT_DECAY_DAYS[layer],
+                    tags=tags or [],
+                    status="active",
+                    source_session=source_session,
+                    content=content,
+                )
+            else:
+                entry = MemoryEntry(
+                    entry_id=existing.entry_id,
+                    layer=layer,
+                    created=existing.created,
+                    last_touched=now,
+                    density=existing.density,
+                    decay_days=existing.decay_days,
+                    tags=tags if tags is not None else existing.tags,
+                    status=existing.status,
+                    source_session=source_session or existing.source_session,
+                    content=content,
+                )
 
-        target.write_text(self._serialize_entry(entry), encoding="utf-8")
-        return str(target.relative_to(self.memory_root)).replace("\\", "/")
+            self._atomic_write(target, self._serialize_entry(entry))
+            return str(target.relative_to(self.memory_root)).replace("\\", "/")
+
+        result = self._with_lock(f"write:{target}", _action)
+        self.journal.complete(op_id, "write_memory", {"saved_path": result})
+        return result
 
     def read_memory(
         self,
@@ -179,17 +195,30 @@ class FileSystemMemoryRepository:
                 },
             )
 
-        raw = source_file.read_text(encoding="utf-8")
-        metadata, body = split_frontmatter(raw)
-        metadata["layer"] = dest_layer
-        metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
-        destination_file.write_text(compose_frontmatter(metadata, body.strip()), encoding="utf-8")
-        source_file.unlink()
+        op_id = self.journal.start(
+            "move_file",
+            {
+                "source": source,
+                "dest_layer": dest_layer,
+                "destination": str(destination_file.relative_to(self.memory_root)).replace("\\", "/"),
+            },
+        )
 
-        return {
-            "source": source,
-            "destination": str(destination_file.relative_to(self.memory_root)).replace("\\", "/"),
-        }
+        def _action() -> dict[str, str]:
+            raw = source_file.read_text(encoding="utf-8")
+            metadata, body = split_frontmatter(raw)
+            metadata["layer"] = dest_layer
+            metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+            self._atomic_write(destination_file, compose_frontmatter(metadata, body.strip()))
+            source_file.unlink()
+            return {
+                "source": source,
+                "destination": str(destination_file.relative_to(self.memory_root)).replace("\\", "/"),
+            }
+
+        result = self._with_lock(f"move:{source_file}:{destination_file}", _action)
+        self.journal.complete(op_id, "move_file", result)
+        return result
 
     def update_map(self, *, action: str, details: dict[str, object]) -> dict[str, str]:
         self.ensure_layout()
@@ -207,23 +236,84 @@ class FileSystemMemoryRepository:
                 message="update_map requires details.link",
             )
 
-        current = self.map_file.read_text(encoding="utf-8")
-        lines = current.splitlines()
-        marker = "## Links"
-        if marker not in lines:
-            lines.extend(["", marker])
-        marker_idx = lines.index(marker)
-        payload_line = f"- {link}"
-        link_lines = lines[marker_idx + 1 :]
+        op_id = self.journal.start("update_map", {"action": action, "link": link})
 
-        if action == "add_link":
-            if payload_line not in link_lines:
-                lines.append(payload_line)
-        else:
-            lines = [line for line in lines if line != payload_line]
+        def _action() -> dict[str, str]:
+            current = self.map_file.read_text(encoding="utf-8")
+            lines = current.splitlines()
+            marker = "## Links"
+            if marker not in lines:
+                lines.extend(["", marker])
+            marker_idx = lines.index(marker)
+            payload_line = f"- {link}"
+            link_lines = lines[marker_idx + 1 :]
 
-        self.map_file.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
-        return {"action": action, "link": link}
+            if action == "add_link":
+                if payload_line not in link_lines:
+                    lines.append(payload_line)
+            else:
+                lines = [line for line in lines if line != payload_line]
+
+            self._atomic_write(self.map_file, "\n".join(lines).strip() + "\n")
+            return {"action": action, "link": link}
+
+        result = self._with_lock("map:update", _action)
+        self.journal.complete(op_id, "update_map", result)
+        return result
+
+    def recover_journal(self) -> dict[str, object]:
+        self.ensure_layout()
+        events = self.journal.read_all()
+        started: dict[str, tuple[str, dict[str, object]]] = {}
+        completed: set[str] = set()
+        for event in events:
+            if event.state == "started":
+                started[event.operation_id] = (event.operation, event.payload)
+            elif event.state == "completed":
+                completed.add(event.operation_id)
+
+        unresolved = [
+            {"operation_id": op_id, "operation": op, "payload": payload}
+            for op_id, (op, payload) in started.items()
+            if op_id not in completed
+        ]
+
+        recovered: list[dict[str, str]] = []
+        for item in unresolved:
+            operation = str(item["operation"])
+            payload = dict(item["payload"])
+            if operation == "write_memory":
+                rel = str(payload.get("path", ""))
+                target = self._resolve_path_in_memory(rel)
+                status = "completed" if target.exists() else "missing_target"
+            elif operation == "move_file":
+                src = str(payload.get("source", ""))
+                dst = str(payload.get("destination", ""))
+                src_file = self._resolve_path_in_memory(src) if src else None
+                dst_file = self._resolve_path_in_memory(dst) if dst else None
+                if dst_file and dst_file.exists() and src_file and not src_file.exists():
+                    status = "completed"
+                elif src_file and src_file.exists():
+                    status = "rolled_back_source_present"
+                else:
+                    status = "unknown_state"
+            elif operation == "update_map":
+                status = "manual_check_required"
+            else:
+                status = "unknown_operation"
+
+            self.journal.complete(
+                str(item["operation_id"]),
+                operation,
+                {"recovery_status": status},
+            )
+            recovered.append({"operation_id": str(item["operation_id"]), "status": status})
+
+        return {
+            "unresolved_count": len(unresolved),
+            "recovered_count": len(recovered),
+            "recovered": recovered,
+        }
 
     def _resolve_target(self, *, layer: LayerName, relative_path: str) -> Path:
         layer_dir = self.memory_root / LAYER_DIRS[layer]
@@ -298,3 +388,12 @@ class FileSystemMemoryRepository:
             return parsed.astimezone(timezone.utc)
         except ValueError:
             return utc_now()
+
+    def _atomic_write(self, file_path: Path, content: str) -> None:
+        temp_path = file_path.with_suffix(file_path.suffix + ".tmp")
+        temp_path.write_text(content, encoding="utf-8")
+        temp_path.replace(file_path)
+
+    def _with_lock(self, lock_name: str, callback: Callable[[], object]):
+        with self.lock_manager.lock(lock_name):
+            return callback()

@@ -43,3 +43,6 @@ class MemoryService:
 
     def update_map(self, *, action: str, details: dict[str, object]) -> dict[str, str]:
         return self.repository.update_map(action=action, details=details)
+
+    def recover_journal(self) -> dict[str, object]:
+        return self.repository.recover_journal()

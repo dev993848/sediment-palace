@@ -18,7 +18,12 @@
 - `search_room`
 - `move_file`
 - `update_map`
+- `recover_journal`
 - Added typed domain errors and frontmatter helpers.
+- Added infrastructure reliability pieces:
+- file lock manager
+- append-only operation journal
+- atomic write helper for mutating operations
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -26,8 +31,8 @@
 
 ## Validation
 - Command: `pytest -q`
-- Result: `8 passed`
+- Result: `10 passed`
 
 ## Next
-- Add lock manager and operation journal.
 - Introduce policy checks for destructive operations.
+- Implement `metabolize` with journaled transitions.

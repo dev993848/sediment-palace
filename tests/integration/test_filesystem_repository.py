@@ -91,3 +91,27 @@ def test_search_room_and_move_file_and_update_map():
     update_remove = repo.update_map(action="remove_link", details={"link": "[[02_Sediment/sedimentation.md]]"})
     assert update_remove["action"] == "remove_link"
     assert "[[02_Sediment/sedimentation.md]]" not in repo.read_map()
+
+    journal_text = (repo.memory_root / "_System" / "journal.log").read_text(encoding="utf-8")
+    assert '"state": "started"' in journal_text
+    assert '"state": "completed"' in journal_text
+
+
+def test_recover_journal_handles_unresolved_events():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    saved = repo.write_memory(
+        layer="shallow",
+        path="ideas/recover-me",
+        content="recovery check",
+        tags=[],
+        source_session="test",
+    )
+    orphan_op = repo.journal.start("write_memory", {"path": saved})
+
+    result = repo.recover_journal()
+    assert result["unresolved_count"] >= 1
+    assert result["recovered_count"] >= 1
+
+    journal_text = (repo.memory_root / "_System" / "journal.log").read_text(encoding="utf-8")
+    assert orphan_op in journal_text
+    assert '"recovery_status": "completed"' in journal_text
