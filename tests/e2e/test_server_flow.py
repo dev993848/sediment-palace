@@ -120,3 +120,52 @@ def test_recover_journal_tool():
         }
     )
     assert "recovered_count" in recover_response["result"]["content"][0]["text"]
+
+
+def test_metabolize_and_purge_policy_flow():
+    server = SedimentPalaceServer(project_root=_new_project_root())
+    server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 30,
+            "method": "tools/call",
+            "params": {
+                "name": "write_memory",
+                "arguments": {"layer": "shallow", "path": "ideas/to-purge", "content": "x"},
+            },
+        }
+    )
+
+    denied = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 31,
+            "method": "tools/call",
+            "params": {"name": "purge_memory", "arguments": {"path": "01_Shallow/ideas/to-purge.md"}},
+        }
+    )
+    assert denied["result"]["isError"] is True
+    assert "policy_violation" in denied["result"]["content"][0]["text"]
+
+    allowed = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 32,
+            "method": "tools/call",
+            "params": {
+                "name": "purge_memory",
+                "arguments": {"path": "01_Shallow/ideas/to-purge.md", "reason": "cleanup", "confirm": True},
+            },
+        }
+    )
+    assert "_Archive/" in allowed["result"]["content"][0]["text"]
+
+    dry_metabolize = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 33,
+            "method": "tools/call",
+            "params": {"name": "metabolize", "arguments": {"dry_run": True}},
+        }
+    )
+    assert "dry_run" in dry_metabolize["result"]["content"][0]["text"]

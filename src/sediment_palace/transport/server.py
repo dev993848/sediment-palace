@@ -112,6 +112,27 @@ class SedimentPalaceServer:
         if tool_name == "recover_journal":
             response = self.service.recover_journal()
             return str(response)
+        if tool_name == "metabolize":
+            response = self.service.metabolize(
+                dry_run=bool(arguments.get("dry_run", False)),
+                days_threshold=arguments.get("days_threshold"),
+                confirm=bool(arguments.get("confirm", False)),
+            )
+            return str(response)
+        if tool_name == "purge_memory":
+            path = arguments.get("path")
+            reason = arguments.get("reason", "unspecified")
+            if not path:
+                raise SedimentPalaceError(
+                    error_code="invalid_arguments",
+                    message="purge_memory requires path",
+                )
+            response = self.service.purge_memory(
+                path=path,
+                reason=reason,
+                confirm=bool(arguments.get("confirm", False)),
+            )
+            return str(response)
         raise SedimentPalaceError(
             error_code="tool_not_found",
             message=f"tool not found: {tool_name}",
@@ -189,6 +210,31 @@ class SedimentPalaceServer:
                 "name": "recover_journal",
                 "description": "Recover unresolved operations from operation journal",
                 "inputSchema": {"type": "object", "properties": {}},
+            },
+            {
+                "name": "metabolize",
+                "description": "Apply decay and promotion rules across memory layers",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "dry_run": {"type": "boolean"},
+                        "days_threshold": {"type": "integer"},
+                        "confirm": {"type": "boolean"},
+                    },
+                },
+            },
+            {
+                "name": "purge_memory",
+                "description": "Archive and remove a memory entry (destructive)",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "reason": {"type": "string"},
+                        "confirm": {"type": "boolean"},
+                    },
+                    "required": ["path"],
+                },
             },
         ]
 

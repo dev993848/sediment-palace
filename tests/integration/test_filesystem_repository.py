@@ -1,9 +1,12 @@
 import shutil
+from datetime import timedelta, timezone
 from pathlib import Path
 
 import pytest
 
 from sediment_palace.domain.errors import SedimentPalaceError
+from sediment_palace.domain.frontmatter import compose_frontmatter, split_frontmatter
+from sediment_palace.domain.models import utc_now
 from sediment_palace.infrastructure.filesystem_memory_repository import (
     FileSystemMemoryRepository,
 )
@@ -115,3 +118,76 @@ def test_recover_journal_handles_unresolved_events():
     journal_text = (repo.memory_root / "_System" / "journal.log").read_text(encoding="utf-8")
     assert orphan_op in journal_text
     assert '"recovery_status": "completed"' in journal_text
+
+
+def test_metabolize_promotes_and_archives_with_confirm():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    promote_src = repo.write_memory(
+        layer="shallow",
+        path="ideas/promote-me",
+        content="promote",
+        tags=[],
+        source_session="test",
+    )
+    archive_src = repo.write_memory(
+        layer="shallow",
+        path="ideas/archive-me",
+        content="archive",
+        tags=[],
+        source_session="test",
+    )
+
+    promote_path = repo.memory_root / promote_src
+    archive_path = repo.memory_root / archive_src
+    for file_path, density in ((promote_path, 0.9), (archive_path, 0.1)):
+        raw = file_path.read_text(encoding="utf-8")
+        metadata, body = split_frontmatter(raw)
+        metadata["density"] = density
+        metadata["last_touched"] = (utc_now() - timedelta(days=10)).astimezone(timezone.utc).isoformat()
+        file_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
+
+    result = repo.metabolize(confirm=True)
+    assert result["promoted_count"] >= 1
+    assert result["archived_count"] >= 1
+    assert (repo.memory_root / "02_Sediment/ideas/promote-me.md").exists()
+    assert (repo.memory_root / "_Archive/01_Shallow/ideas/archive-me.md").exists()
+
+
+def test_metabolize_dry_run_does_not_mutate():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    src = repo.write_memory(
+        layer="shallow",
+        path="ideas/dry-run",
+        content="dry run",
+        tags=[],
+        source_session="test",
+    )
+    src_path = repo.memory_root / src
+    raw = src_path.read_text(encoding="utf-8")
+    metadata, body = split_frontmatter(raw)
+    metadata["density"] = 0.9
+    metadata["last_touched"] = (utc_now() - timedelta(days=14)).astimezone(timezone.utc).isoformat()
+    src_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
+
+    result = repo.metabolize(dry_run=True)
+    assert result["promoted_count"] >= 1
+    assert src_path.exists()
+    assert not (repo.memory_root / "02_Sediment/ideas/dry-run.md").exists()
+
+
+def test_purge_memory_requires_confirm():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    src = repo.write_memory(
+        layer="shallow",
+        path="ideas/purge-me",
+        content="purge",
+        tags=[],
+        source_session="test",
+    )
+    with pytest.raises(SedimentPalaceError) as exc:
+        repo.purge_memory(path=src, reason="test")
+    assert exc.value.error_code == "policy_violation"
+
+    result = repo.purge_memory(path=src, reason="test", confirm=True)
+    assert result["archived_to"].startswith("_Archive/")
+    assert not (repo.memory_root / src).exists()

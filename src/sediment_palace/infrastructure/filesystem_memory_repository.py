@@ -30,6 +30,7 @@ class FileSystemMemoryRepository:
         self.memory_root = (self.project_root / "memory").resolve()
         self.map_file = self.memory_root / "PALACE_MAP.md"
         self.system_root = self.memory_root / "_System"
+        self.archive_root = self.memory_root / "_Archive"
         self.lock_manager = FileLockManager(lock_root=self.system_root / "locks")
         self.journal = OperationJournal(path=self.system_root / "journal.log")
 
@@ -38,6 +39,7 @@ class FileSystemMemoryRepository:
         for dirname in LAYER_DIRS.values():
             (self.memory_root / dirname).mkdir(parents=True, exist_ok=True)
         self.system_root.mkdir(parents=True, exist_ok=True)
+        self.archive_root.mkdir(parents=True, exist_ok=True)
         if not self.map_file.exists():
             self.map_file.write_text("# PALACE MAP\n", encoding="utf-8")
 
@@ -315,6 +317,140 @@ class FileSystemMemoryRepository:
             "recovered": recovered,
         }
 
+    def purge_memory(self, *, path: str, reason: str, confirm: bool = False) -> dict[str, str]:
+        self.ensure_layout()
+        self._require_destructive_confirm(confirm=confirm, operation="purge_memory")
+        target = self._resolve_path_in_memory(path)
+        if not target.exists() or not target.is_file():
+            raise SedimentPalaceError(
+                error_code="not_found",
+                message=f"memory file not found: {path}",
+                context={"path": path},
+            )
+        archive_target = (self.archive_root / target.relative_to(self.memory_root)).resolve()
+        archive_target.parent.mkdir(parents=True, exist_ok=True)
+        op_id = self.journal.start(
+            "purge_memory",
+            {"path": path, "reason": reason, "archive_target": str(archive_target.relative_to(self.memory_root)).replace("\\", "/")},
+        )
+
+        def _action() -> dict[str, str]:
+            raw = target.read_text(encoding="utf-8")
+            metadata, body = split_frontmatter(raw)
+            if metadata:
+                metadata["status"] = "archived"
+                metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+                metadata["tags"] = list(set([*list(metadata.get("tags", [])), "purged"]))
+                self._atomic_write(archive_target, compose_frontmatter(metadata, body.strip()))
+            else:
+                self._atomic_write(archive_target, body.strip())
+            target.unlink()
+            return {
+                "path": path,
+                "archived_to": str(archive_target.relative_to(self.memory_root)).replace("\\", "/"),
+                "reason": reason,
+            }
+
+        result = self._with_lock(f"purge:{target}", _action)
+        self.journal.complete(op_id, "purge_memory", result)
+        return result
+
+    def metabolize(
+        self,
+        *,
+        dry_run: bool = False,
+        days_threshold: int | None = None,
+        confirm: bool = False,
+    ) -> dict[str, object]:
+        self.ensure_layout()
+        if not dry_run:
+            self._require_destructive_confirm(confirm=confirm, operation="metabolize")
+
+        op_id = self.journal.start(
+            "metabolize",
+            {"dry_run": dry_run, "days_threshold": days_threshold},
+        )
+
+        def _action() -> dict[str, object]:
+            promoted: list[str] = []
+            archived: list[str] = []
+            scanned = 0
+            now = utc_now()
+
+            for md_file in self.memory_root.rglob("*.md"):
+                if md_file == self.map_file:
+                    continue
+                if "_System" in md_file.parts or "_Archive" in md_file.parts:
+                    continue
+                scanned += 1
+                raw = md_file.read_text(encoding="utf-8")
+                metadata, body = split_frontmatter(raw)
+                if not metadata:
+                    continue
+
+                layer = str(metadata.get("layer", "shallow"))
+                touched = self._parse_iso(str(metadata.get("last_touched", now.isoformat())))
+                age_days = max(0, int((now - touched).total_seconds() // 86400))
+                decay_days = int(metadata.get("decay_days", 7))
+                density = float(metadata.get("density", 0.0))
+                stale_threshold = days_threshold if days_threshold is not None else decay_days
+
+                if layer == "shallow" and age_days > stale_threshold:
+                    if density >= 0.5:
+                        destination = self._resolve_target(
+                            layer="sediment",
+                            relative_path=str(md_file.relative_to(self.memory_root / LAYER_DIRS["shallow"])),
+                        )
+                        promoted.append(str(destination.relative_to(self.memory_root)).replace("\\", "/"))
+                        if not dry_run:
+                            self._move_with_metadata(
+                                source=md_file,
+                                destination=destination,
+                                body=body,
+                                metadata=metadata,
+                                layer="sediment",
+                                status="active",
+                            )
+                    else:
+                        archive_path = self.archive_root / md_file.relative_to(self.memory_root)
+                        archived.append(str(archive_path.relative_to(self.memory_root)).replace("\\", "/"))
+                        if not dry_run:
+                            self._move_to_archive(
+                                source=md_file,
+                                destination=archive_path,
+                                body=body,
+                                metadata=metadata,
+                            )
+
+                if layer == "sediment" and age_days > 30 and density >= 0.8:
+                    destination = self._resolve_target(
+                        layer="bedrock",
+                        relative_path=str(md_file.relative_to(self.memory_root / LAYER_DIRS["sediment"])),
+                    )
+                    promoted.append(str(destination.relative_to(self.memory_root)).replace("\\", "/"))
+                    if not dry_run:
+                        self._move_with_metadata(
+                            source=md_file,
+                            destination=destination,
+                            body=body,
+                            metadata=metadata,
+                            layer="bedrock",
+                            status="crystallized",
+                        )
+
+            return {
+                "dry_run": dry_run,
+                "scanned": scanned,
+                "promoted_count": len(promoted),
+                "archived_count": len(archived),
+                "promoted": promoted,
+                "archived": archived,
+            }
+
+        result = self._with_lock("metabolize", _action)
+        self.journal.complete(op_id, "metabolize", {"summary": result})
+        return result
+
     def _resolve_target(self, *, layer: LayerName, relative_path: str) -> Path:
         layer_dir = self.memory_root / LAYER_DIRS[layer]
         rel = Path(relative_path)
@@ -397,3 +533,43 @@ class FileSystemMemoryRepository:
     def _with_lock(self, lock_name: str, callback: Callable[[], object]):
         with self.lock_manager.lock(lock_name):
             return callback()
+
+    def _move_with_metadata(
+        self,
+        *,
+        source: Path,
+        destination: Path,
+        metadata: dict[str, object],
+        body: str,
+        layer: LayerName,
+        status: str,
+    ) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        metadata["layer"] = layer
+        metadata["status"] = status
+        metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+        self._atomic_write(destination, compose_frontmatter(metadata, body.strip()))
+        source.unlink()
+
+    def _move_to_archive(
+        self,
+        *,
+        source: Path,
+        destination: Path,
+        metadata: dict[str, object],
+        body: str,
+    ) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        metadata["status"] = "archived"
+        metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+        self._atomic_write(destination, compose_frontmatter(metadata, body.strip()))
+        source.unlink()
+
+    def _require_destructive_confirm(self, *, confirm: bool, operation: str) -> None:
+        if confirm:
+            return
+        raise SedimentPalaceError(
+            error_code="policy_violation",
+            message=f"{operation} requires confirm=true",
+            context={"operation": operation},
+        )

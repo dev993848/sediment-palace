@@ -12,6 +12,7 @@ The format is based on Keep a Changelog principles and this project follows sema
 - MCP JSON-RPC server core with tools: `read_map`, `write_memory`, `read_memory`.
 - Extended MCP tools: `search_room`, `move_file`, `update_map`.
 - Added `recover_journal` tool.
+- Added `metabolize` and `purge_memory` tools with destructive-operation policy checks.
 - Domain/frontmatter modules and filesystem repository.
 - Added file lock manager and append-only operation journal.
 - Added atomic write path for mutating repository operations.

@@ -26,10 +26,10 @@
 6. `update_map(action, details)`  `implemented in MVP`
 - Adds/removes/links references in map/journal.
 
-7. `metabolize(days_threshold?, dry_run?)`  `planned`
+7. `metabolize(days_threshold?, dry_run?, confirm?)`  `implemented in MVP`
 - Executes decay/promotion/archive workflow.
 
-8. `purge_memory(path, reason)`  `planned`
+8. `purge_memory(path, reason, confirm?)`  `implemented in MVP`
 - Destructive operation; requires policy approval.
 - Must always emit audit event.
 
@@ -47,6 +47,7 @@
 - `write_memory`: idempotent for same `(path, content)`.
 - `move_file`: idempotent if source already moved to target.
 - `metabolize(dry_run=true)`: no side effects.
+- `purge_memory`: not idempotent after first successful purge.
 
 ## Compatibility
 - Backward incompatible changes require ADR + major version bump.

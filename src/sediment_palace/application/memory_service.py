@@ -46,3 +46,19 @@ class MemoryService:
 
     def recover_journal(self) -> dict[str, object]:
         return self.repository.recover_journal()
+
+    def purge_memory(self, *, path: str, reason: str, confirm: bool = False) -> dict[str, str]:
+        return self.repository.purge_memory(path=path, reason=reason, confirm=confirm)
+
+    def metabolize(
+        self,
+        *,
+        dry_run: bool = False,
+        days_threshold: int | None = None,
+        confirm: bool = False,
+    ) -> dict[str, object]:
+        return self.repository.metabolize(
+            dry_run=dry_run,
+            days_threshold=days_threshold,
+            confirm=confirm,
+        )

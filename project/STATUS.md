@@ -19,11 +19,14 @@
 - `move_file`
 - `update_map`
 - `recover_journal`
+- `metabolize`
+- `purge_memory`
 - Added typed domain errors and frontmatter helpers.
 - Added infrastructure reliability pieces:
 - file lock manager
 - append-only operation journal
 - atomic write helper for mutating operations
+- policy checks for destructive operations (`confirm=true`)
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -31,8 +34,8 @@
 
 ## Validation
 - Command: `pytest -q`
-- Result: `10 passed`
+- Result: `14 passed`
 
 ## Next
-- Introduce policy checks for destructive operations.
-- Implement `metabolize` with journaled transitions.
+- Add stronger policy engine (role/allowlist/rate-limits).
+- Extend metabolize rules (streak-based transitions, archival policies).
