@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+
+# Runtime artifacts
+memory/_System/backups/
+memory/_System/locks/
+memory/02_Sediment/_Graveyard/
