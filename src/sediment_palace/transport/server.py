@@ -55,7 +55,14 @@ class SedimentPalaceServer:
                 arguments = params.get("arguments", {})
                 self._validate_budgets(tool_name=tool_name, arguments=arguments)
                 result = self._execute_with_timeout(tool_name=tool_name, arguments=arguments)
-                return self._ok(request_id, {"content": [{"type": "text", "text": result}]})
+                summary = f"{tool_name}:ok"
+                return self._ok(
+                    request_id,
+                    {
+                        "content": [{"type": "text", "text": summary}],
+                        "data": result,
+                    },
+                )
             return self._err(request_id, "method_not_found", f"method not found: {method}")
         except SedimentPalaceError as exc:
             payload = {
@@ -64,13 +71,20 @@ class SedimentPalaceServer:
                 "retryable": exc.retryable,
                 "context": exc.context,
             }
-            return self._ok(request_id, {"content": [{"type": "text", "text": str(payload)}], "isError": True})
+            return self._ok(
+                request_id,
+                {
+                    "content": [{"type": "text", "text": "error"}],
+                    "isError": True,
+                    "error": payload,
+                },
+            )
         except Exception as exc:  # pragma: no cover
             return self._err(request_id, "internal_error", str(exc))
 
-    def _call_tool(self, *, tool_name: str, arguments: dict[str, Any]) -> str:
+    def _call_tool(self, *, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if tool_name == "read_map":
-            return self.service.read_map()
+            return {"map": self.service.read_map()}
         if tool_name == "write_memory":
             layer = arguments.get("layer", "shallow")
             path = arguments.get("path", "entry.md")
@@ -87,14 +101,14 @@ class SedimentPalaceServer:
                 tags=arguments.get("tags"),
                 source_session=arguments.get("source_session", "mcp_session"),
             )
-            return f"saved:{saved_path}"
+            return {"saved_path": saved_path}
         if tool_name == "read_memory":
             response = self.service.read_memory(
                 path=arguments.get("path"),
                 query=arguments.get("query"),
                 layer=arguments.get("layer"),
             )
-            return str(response)
+            return response
         if tool_name == "search_room":
             room = arguments.get("room")
             query = arguments.get("query")
@@ -104,7 +118,7 @@ class SedimentPalaceServer:
                     message="search_room requires room and query",
                 )
             response = self.service.search_room(room=room, query=query)
-            return str(response)
+            return response
         if tool_name == "move_file":
             source = arguments.get("source")
             dest_layer = arguments.get("dest_layer")
@@ -118,7 +132,7 @@ class SedimentPalaceServer:
                 dest_layer=dest_layer,
                 new_path=arguments.get("new_path"),
             )
-            return str(response)
+            return response
         if tool_name == "update_map":
             action = arguments.get("action")
             details = arguments.get("details", {})
@@ -128,17 +142,17 @@ class SedimentPalaceServer:
                     message="update_map requires action",
                 )
             response = self.service.update_map(action=action, details=details)
-            return str(response)
+            return response
         if tool_name == "recover_journal":
             response = self.service.recover_journal()
-            return str(response)
+            return response
         if tool_name == "metabolize":
             response = self.service.metabolize(
                 dry_run=bool(arguments.get("dry_run", False)),
                 days_threshold=arguments.get("days_threshold"),
                 confirm=bool(arguments.get("confirm", False)),
             )
-            return str(response)
+            return response
         if tool_name == "purge_memory":
             path = arguments.get("path")
             reason = arguments.get("reason", "unspecified")
@@ -152,14 +166,14 @@ class SedimentPalaceServer:
                 reason=reason,
                 confirm=bool(arguments.get("confirm", False)),
             )
-            return str(response)
+            return response
         raise SedimentPalaceError(
             error_code="tool_not_found",
             message=f"tool not found: {tool_name}",
             context={"tool_name": tool_name},
         )
 
-    def _execute_with_timeout(self, *, tool_name: str, arguments: dict[str, Any]) -> str:
+    def _execute_with_timeout(self, *, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         timeout = self.tool_timeouts_seconds.get(tool_name, 2.0)
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(self._call_tool, tool_name=tool_name, arguments=arguments)

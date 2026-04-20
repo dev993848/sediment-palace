@@ -33,7 +33,7 @@ def test_write_then_read():
             },
         }
     )
-    assert "saved:01_Shallow/ideas/t1.md" in write_response["result"]["content"][0]["text"]
+    assert write_response["result"]["data"]["saved_path"] == "01_Shallow/ideas/t1.md"
 
     read_response = server.handle_request(
         {
@@ -46,7 +46,8 @@ def test_write_then_read():
             },
         }
     )
-    assert "01_Shallow/ideas/t1.md" in read_response["result"]["content"][0]["text"]
+    matches = read_response["result"]["data"]["matches"]
+    assert matches[0]["path"] == "01_Shallow/ideas/t1.md"
 
 
 def test_search_move_update_map_flow():
@@ -72,7 +73,7 @@ def test_search_move_update_map_flow():
             "params": {"name": "search_room", "arguments": {"room": "01_Shallow/ideas", "query": "queryable"}},
         }
     )
-    assert "01_Shallow/ideas/t2.md" in search_response["result"]["content"][0]["text"]
+    assert search_response["result"]["data"]["matches"][0]["path"] == "01_Shallow/ideas/t2.md"
 
     move_response = server.handle_request(
         {
@@ -82,7 +83,7 @@ def test_search_move_update_map_flow():
             "params": {"name": "move_file", "arguments": {"source": "01_Shallow/ideas/t2.md", "dest_layer": "sediment"}},
         }
     )
-    assert "02_Sediment/t2.md" in move_response["result"]["content"][0]["text"]
+    assert move_response["result"]["data"]["destination"] == "02_Sediment/t2.md"
 
     add_link_response = server.handle_request(
         {
@@ -95,7 +96,7 @@ def test_search_move_update_map_flow():
             },
         }
     )
-    assert "add_link" in add_link_response["result"]["content"][0]["text"]
+    assert add_link_response["result"]["data"]["action"] == "add_link"
 
 
 def test_recover_journal_tool():
@@ -120,7 +121,7 @@ def test_recover_journal_tool():
             "params": {"name": "recover_journal", "arguments": {}},
         }
     )
-    assert "recovered_count" in recover_response["result"]["content"][0]["text"]
+    assert "recovered_count" in recover_response["result"]["data"]
 
 
 def test_metabolize_and_purge_policy_flow():
@@ -146,7 +147,7 @@ def test_metabolize_and_purge_policy_flow():
         }
     )
     assert denied["result"]["isError"] is True
-    assert "policy_violation" in denied["result"]["content"][0]["text"]
+    assert denied["result"]["error"]["error_code"] == "policy_violation"
 
     allowed = server.handle_request(
         {
@@ -159,7 +160,7 @@ def test_metabolize_and_purge_policy_flow():
             },
         }
     )
-    assert "_Archive/" in allowed["result"]["content"][0]["text"]
+    assert allowed["result"]["data"]["archived_to"].startswith("_Archive/")
 
     dry_metabolize = server.handle_request(
         {
@@ -169,7 +170,7 @@ def test_metabolize_and_purge_policy_flow():
             "params": {"name": "metabolize", "arguments": {"dry_run": True}},
         }
     )
-    assert "dry_run" in dry_metabolize["result"]["content"][0]["text"]
+    assert dry_metabolize["result"]["data"]["dry_run"] is True
 
 
 def test_transport_timeout_budget():
@@ -192,7 +193,7 @@ def test_transport_timeout_budget():
         }
     )
     assert response["result"]["isError"] is True
-    assert "timeout_exceeded" in response["result"]["content"][0]["text"]
+    assert response["result"]["error"]["error_code"] == "timeout_exceeded"
 
 
 def test_transport_input_budget():
@@ -207,4 +208,4 @@ def test_transport_input_budget():
         }
     )
     assert response["result"]["isError"] is True
-    assert "budget_exceeded" in response["result"]["content"][0]["text"]
+    assert response["result"]["error"]["error_code"] == "budget_exceeded"

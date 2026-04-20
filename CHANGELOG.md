@@ -20,6 +20,7 @@ The format is based on Keep a Changelog principles and this project follows sema
 - Added fault-injection test path for crash-consistency/recovery validation.
 - Added transport-level input budgets and per-tool timeout enforcement.
 - Expanded metabolize rules with streak-based transitions and decaying intermediate state.
+- Switched transport tool responses to structured JSON payloads (`result.data` / `result.error`).
 - Test suites (unit/integration/e2e) for MVP flows.
 - Project status tracker `project/STATUS.md`.
 

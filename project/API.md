@@ -4,6 +4,7 @@
 - Deterministic behavior.
 - Typed error responses.
 - No side effects outside `memory/`.
+- `tools/call` returns structured payloads in `result.data` (not stringified objects).
 
 ## Tools
 1. `read_map()`  `implemented in MVP`
@@ -43,6 +44,10 @@
 - `message`
 - `context`
 - `retryable`
+
+Transport envelope:
+- Success: `result = { content: [...], data: <json object> }`
+- Error: `result = { content: [...], isError: true, error: { ... } }`
 
 Additional operational error codes now used:
 - `policy_violation`

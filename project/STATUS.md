@@ -31,6 +31,7 @@
 - fault-injection path for crash-consistency tests
 - transport-level input budgets and per-tool timeout enforcement
 - streak-aware metabolize transitions with decaying intermediate state
+- structured `tools/call` responses (`result.data` / `result.error`) replacing string payload parsing
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -41,6 +42,5 @@
 - Result: `19 passed`
 
 ## Next
-- tighten typed response format (structured JSON instead of string payloads).
 - add per-tool telemetry (duration/result/error counters).
 - introduce property-based tests for metabolize invariants.
