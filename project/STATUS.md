@@ -40,6 +40,8 @@
 - CI pipeline with lint/type/test gates
 - local quality gates are green (`ruff`, `mypy`, `pytest`)
 - complete user documentation package in `docs/user/`
+- documentation split by language: `docs/en` and `docs/ru`
+- open-source repo package finalized (`LICENSE`, conduct/security/support, issue/pr templates)
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors

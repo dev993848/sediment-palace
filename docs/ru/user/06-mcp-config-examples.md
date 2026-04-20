@@ -1,8 +1,6 @@
-# 06. MCP Config Examples (Console Agents)
+# 06. Примеры MCP Конфигурации
 
-Below are ready-to-use examples for stdio MCP connection.
-
-## Generic stdio config (template)
+## Шаблон
 ```json
 {
   "mcpServers": {
@@ -18,7 +16,7 @@ Below are ready-to-use examples for stdio MCP connection.
 }
 ```
 
-## Windows (PowerShell / cmd)
+## Windows
 ```json
 {
   "mcpServers": {
@@ -49,11 +47,3 @@ Below are ready-to-use examples for stdio MCP connection.
   }
 }
 ```
-
-## Recommended agent startup prompt
-Use `AGENT_BOOTSTRAP.md` as system/developer prompt so the agent always starts with:
-1. `healthcheck`
-2. `tools/list`
-3. `read_map`
-
-This enables “run server -> connect MCP -> work” without extra skill.

@@ -31,8 +31,3 @@ python -m sediment_palace.main
 Ожидаемый результат:
 - `result.data.status = "ok"`
 - `result.data.service = "sediment-palace"`
-
-## 4) Минимальный сценарий записи/чтения
-1. `write_memory` — записать заметку в `01_Shallow`.
-2. `read_memory` с `query` — найти заметку.
-3. `get_metrics` — убедиться, что операции отражены в метриках.

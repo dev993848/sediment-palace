@@ -1,9 +1,16 @@
 # SedimentPalace MCP
 
-Local-first memory engine for AI agents with layered sedimentation, policy controls, journaling, and telemetry.
+SedimentPalace MCP is a local-first memory engine for AI agents with layered sedimentation, policy controls, journaling, recovery, and telemetry.
+
+## Features
+- Layered memory model (`01_Shallow`, `02_Sediment`, `03_Bedrock`)
+- Structured MCP tool responses (`result.data` / `result.error`)
+- Policy engine (confirm checks, rate limits, budgets)
+- Operation journal + recovery flow
+- Per-tool telemetry and metrics snapshot
+- Healthcheck endpoint for runtime readiness
 
 ## Quick Start
-
 ```bash
 python -m pip install -e ".[dev]"
 pytest -q
@@ -11,9 +18,7 @@ python -m sediment_palace.main
 ```
 
 ## Runtime Configuration
-
 Set via environment variables:
-
 - `SEDIMENT_PROJECT_ROOT` (default: `.`)
 - `SEDIMENT_TIMEOUT_DEFAULT_SECONDS` (default: `2.0`)
 - `SEDIMENT_TIMEOUT_METABOLIZE_SECONDS` (default: `5.0`)
@@ -23,21 +28,28 @@ Set via environment variables:
 - `SEDIMENT_BUDGET_SEARCH_ROOM` (default: `1024`)
 - `SEDIMENT_BUDGET_PURGE_REASON` (default: `1024`)
 
-## Quality Gates
+## Documentation
+- Language index: `docs/README.md`
+- English docs: `docs/en/README.md`
+- Russian docs: `docs/ru/README.md`
+- Plug-and-play bootstrap prompt: `AGENT_BOOTSTRAP.md`
 
-- `ruff check src tests`
-- `mypy src`
+## Quality Gates
+- `python -m ruff check src tests`
+- `python -m mypy src`
 - `pytest -q`
 
-CI workflow runs all three gates on push and pull requests.
+CI runs all gates on push and pull requests.
 
-## User Docs
+## Open Source Files
+- `LICENSE`
+- `CONTRIBUTING.md`
+- `CODE_OF_CONDUCT.md`
+- `SECURITY.md`
+- `SUPPORT.md`
+- `.github/ISSUE_TEMPLATE/*`
+- `.github/PULL_REQUEST_TEMPLATE.md`
 
-- `docs/user/README.md`
-- `docs/user/01-getting-started.md`
-- `docs/user/02-daily-workflows.md`
-- `docs/user/03-tools-reference.md`
-- `docs/user/04-troubleshooting.md`
-- `docs/user/05-faq.md`
-- `docs/user/06-mcp-config-examples.md`
-- `AGENT_BOOTSTRAP.md` (recommended system prompt for plug-and-play agent behavior)
+## Release
+- Latest RC tag: `v0.1.0-rc1`
+- Release notes: `project/releases/v0.1.0-rc1/RELEASE_NOTES.md`
