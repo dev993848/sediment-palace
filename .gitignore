@@ -13,3 +13,7 @@ Thumbs.db
 memory/_System/backups/
 memory/_System/locks/
 memory/02_Sediment/_Graveyard/
+tests/fixtures/work*/
+.tmp/
+.tmp-testdata/
+pytest-cache-files-*/

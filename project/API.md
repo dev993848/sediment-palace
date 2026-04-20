@@ -6,30 +6,30 @@
 - No side effects outside `memory/`.
 
 ## Tools
-1. `read_map()`
+1. `read_map()`  `implemented in MVP`
 - Returns current `PALACE_MAP.md`.
 
-2. `write_memory(layer, path, content, tags?)`
+2. `write_memory(layer, path, content, tags?)`  `implemented in MVP`
 - Creates/updates memory entry.
 - Normalizes frontmatter.
 
-3. `read_memory(path? | query?, layer?)`
+3. `read_memory(path? | query?, layer?)`  `implemented in MVP`
 - Reads by path or searches by query.
 
-4. `search_room(room, query)`
+4. `search_room(room, query)`  `planned`
 - Scoped room search by content/tags.
 
-5. `move_file(source, dest_layer, new_path?)`
+5. `move_file(source, dest_layer, new_path?)`  `planned`
 - Moves file between layers.
 - Updates metadata and map links.
 
-6. `update_map(action, details)`
+6. `update_map(action, details)`  `planned`
 - Adds/removes/links references in map/journal.
 
-7. `metabolize(days_threshold?, dry_run?)`
+7. `metabolize(days_threshold?, dry_run?)`  `planned`
 - Executes decay/promotion/archive workflow.
 
-8. `purge_memory(path, reason)`
+8. `purge_memory(path, reason)`  `planned`
 - Destructive operation; requires policy approval.
 - Must always emit audit event.
 

@@ -1,0 +1,66 @@
+import shutil
+from pathlib import Path
+
+import pytest
+
+from sediment_palace.domain.errors import SedimentPalaceError
+from sediment_palace.infrastructure.filesystem_memory_repository import (
+    FileSystemMemoryRepository,
+)
+
+
+def _new_project_root() -> Path:
+    root = Path("tests/fixtures/work1").resolve()
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def test_write_and_read_by_path():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    saved = repo.write_memory(
+        layer="shallow",
+        path="ideas/auth-flow",
+        content="OAuth2 notes",
+        tags=["auth"],
+        source_session="test",
+    )
+    assert saved == "01_Shallow/ideas/auth-flow.md"
+    data = repo.read_memory(path=saved)
+    assert data["content"] == "OAuth2 notes"
+    assert data["metadata"]["layer"] == "shallow"
+
+
+def test_read_by_query_in_layer():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    repo.write_memory(
+        layer="shallow",
+        path="notes/a",
+        content="token refresh flow",
+        tags=[],
+        source_session="test",
+    )
+    repo.write_memory(
+        layer="sediment",
+        path="notes/b",
+        content="database schema",
+        tags=[],
+        source_session="test",
+    )
+    result = repo.read_memory(query="token", layer="shallow")
+    assert len(result["matches"]) == 1
+    assert result["matches"][0]["path"].startswith("01_Shallow/")
+
+
+def test_path_traversal_blocked():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    with pytest.raises(SedimentPalaceError) as exc:
+        repo.write_memory(
+            layer="shallow",
+            path="../../escape",
+            content="x",
+            tags=[],
+            source_session="test",
+        )
+    assert exc.value.error_code == "path_violation"
