@@ -39,6 +39,7 @@
 - `healthcheck` tool for service readiness
 - CI pipeline with lint/type/test gates
 - local quality gates are green (`ruff`, `mypy`, `pytest`)
+- complete user documentation package in `docs/user/`
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors

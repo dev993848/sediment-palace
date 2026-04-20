@@ -27,6 +27,7 @@ The format is based on Keep a Changelog principles and this project follows sema
 - Added `healthcheck` tool and CI pipeline (`ruff`, `mypy`, `pytest`).
 - Test suites (unit/integration/e2e/property) for MVP flows.
 - Local quality gates verified green (`ruff`, `mypy`, `pytest`).
+- Added end-user documentation package under `docs/user`.
 - Project status tracker `project/STATUS.md`.
 
 ## [2026-04-20]

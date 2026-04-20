@@ -30,3 +30,12 @@ Set via environment variables:
 - `pytest -q`
 
 CI workflow runs all three gates on push and pull requests.
+
+## User Docs
+
+- `docs/user/README.md`
+- `docs/user/01-getting-started.md`
+- `docs/user/02-daily-workflows.md`
+- `docs/user/03-tools-reference.md`
+- `docs/user/04-troubleshooting.md`
+- `docs/user/05-faq.md`
