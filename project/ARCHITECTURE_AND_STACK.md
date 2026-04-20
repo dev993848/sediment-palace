@@ -72,6 +72,7 @@ Domain concepts:
 - Quality: `ruff`, `mypy`
 - Packaging: `uv` or `pip + venv`
 - CI: GitHub Actions
+- Runtime config: environment-based (`SEDIMENT_*` variables)
 
 ## Proposed Repository Layout
 ```text

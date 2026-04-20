@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import json
 import sys
-from pathlib import Path
 
+from sediment_palace.config import load_config
 from sediment_palace.transport.server import SedimentPalaceServer
 
 
 def main() -> int:
-    server = SedimentPalaceServer(project_root=Path("."))
+    config = load_config()
+    server = SedimentPalaceServer(config=config)
     for line in sys.stdin:
         line = line.strip()
         if not line:

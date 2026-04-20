@@ -1,16 +1,12 @@
-import shutil
 import time
 from pathlib import Path
 
+from conftest import make_workdir
 from sediment_palace.transport.server import SedimentPalaceServer
 
 
 def _new_project_root() -> Path:
-    root = Path("tests/fixtures/work2").resolve()
-    if root.exists():
-        shutil.rmtree(root)
-    root.mkdir(parents=True, exist_ok=True)
-    return root
+    return make_workdir("work2")
 
 
 def test_initialize():
@@ -80,7 +76,10 @@ def test_search_move_update_map_flow():
             "jsonrpc": "2.0",
             "id": 12,
             "method": "tools/call",
-            "params": {"name": "move_file", "arguments": {"source": "01_Shallow/ideas/t2.md", "dest_layer": "sediment"}},
+            "params": {
+                "name": "move_file",
+                "arguments": {"source": "01_Shallow/ideas/t2.md", "dest_layer": "sediment"},
+            },
         }
     )
     assert move_response["result"]["data"]["destination"] == "02_Sediment/t2.md"
@@ -253,3 +252,17 @@ def test_tool_telemetry_and_metrics_snapshot():
     assert data["write_memory"]["success"] >= 1
     assert "purge_memory" in data
     assert data["purge_memory"]["error"] >= 1
+
+
+def test_healthcheck():
+    server = SedimentPalaceServer(project_root=_new_project_root())
+    response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 60,
+            "method": "tools/call",
+            "params": {"name": "healthcheck", "arguments": {}},
+        }
+    )
+    assert response["result"]["data"]["status"] == "ok"
+    assert response["result"]["data"]["service"] == "sediment-palace"

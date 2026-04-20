@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable
 from uuid import uuid4
 
 from sediment_palace.domain.errors import SedimentPalaceError
@@ -220,7 +220,7 @@ class FileSystemMemoryRepository:
             raw = source_file.read_text(encoding="utf-8")
             metadata, body = split_frontmatter(raw)
             metadata["layer"] = dest_layer
-            metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+            metadata["last_touched"] = utc_now().astimezone(UTC).isoformat()
             self._atomic_write(destination_file, compose_frontmatter(metadata, body.strip()))
             source_file.unlink()
             return {
@@ -294,7 +294,8 @@ class FileSystemMemoryRepository:
         recovered: list[dict[str, str]] = []
         for item in unresolved:
             operation = str(item["operation"])
-            payload = dict(item["payload"])
+            raw_payload = item["payload"]
+            payload = raw_payload if isinstance(raw_payload, dict) else {}
             if operation == "write_memory":
                 rel = str(payload.get("path", ""))
                 target = self._resolve_path_in_memory(rel)
@@ -342,7 +343,11 @@ class FileSystemMemoryRepository:
         archive_target.parent.mkdir(parents=True, exist_ok=True)
         op_id = self.journal.start(
             "purge_memory",
-            {"path": path, "reason": reason, "archive_target": str(archive_target.relative_to(self.memory_root)).replace("\\", "/")},
+            {
+                "path": path,
+                "reason": reason,
+                "archive_target": str(archive_target.relative_to(self.memory_root)).replace("\\", "/"),
+            },
         )
 
         def _action() -> dict[str, str]:
@@ -351,7 +356,7 @@ class FileSystemMemoryRepository:
             metadata, body = split_frontmatter(raw)
             if metadata:
                 metadata["status"] = "archived"
-                metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+                metadata["last_touched"] = utc_now().astimezone(UTC).isoformat()
                 metadata["tags"] = list(set([*list(metadata.get("tags", [])), "purged"]))
                 self._atomic_write(archive_target, compose_frontmatter(metadata, body.strip()))
             else:
@@ -552,8 +557,8 @@ class FileSystemMemoryRepository:
         metadata = {
             "id": entry.entry_id,
             "layer": entry.layer,
-            "created": entry.created.astimezone(timezone.utc).isoformat(),
-            "last_touched": entry.last_touched.astimezone(timezone.utc).isoformat(),
+            "created": entry.created.astimezone(UTC).isoformat(),
+            "last_touched": entry.last_touched.astimezone(UTC).isoformat(),
             "density": float(entry.density),
             "streak": int(entry.streak),
             "decay_days": int(entry.decay_days),
@@ -567,8 +572,8 @@ class FileSystemMemoryRepository:
         try:
             parsed = datetime.fromisoformat(value)
             if parsed.tzinfo is None:
-                return parsed.replace(tzinfo=timezone.utc)
-            return parsed.astimezone(timezone.utc)
+                return parsed.replace(tzinfo=UTC)
+            return parsed.astimezone(UTC)
         except ValueError:
             return utc_now()
 
@@ -594,7 +599,7 @@ class FileSystemMemoryRepository:
         destination.parent.mkdir(parents=True, exist_ok=True)
         metadata["layer"] = layer
         metadata["status"] = status
-        metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+        metadata["last_touched"] = utc_now().astimezone(UTC).isoformat()
         self._atomic_write(destination, compose_frontmatter(metadata, body.strip()))
         source.unlink()
 
@@ -608,7 +613,7 @@ class FileSystemMemoryRepository:
     ) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         metadata["status"] = "archived"
-        metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+        metadata["last_touched"] = utc_now().astimezone(UTC).isoformat()
         self._atomic_write(destination, compose_frontmatter(metadata, body.strip()))
         source.unlink()
 

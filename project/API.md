@@ -45,6 +45,10 @@
   - `total_duration_ms`, `avg_duration_ms`
   - `errors_by_code`
 
+11. `healthcheck()`  `implemented in MVP`
+- Returns runtime service status:
+  - `status`, `service`, `version`, `project_root`
+
 ## Error Model (required fields)
 - `error_code`
 - `message`

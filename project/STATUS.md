@@ -35,6 +35,10 @@
 - per-tool telemetry recorder with counters and duration aggregates
 - `get_metrics` tool for runtime telemetry snapshot
 - property-based tests for `metabolize` invariants (Hypothesis-backed)
+- runtime config loader from environment variables
+- `healthcheck` tool for service readiness
+- CI pipeline with lint/type/test gates
+- local quality gates are green (`ruff`, `mypy`, `pytest`)
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -42,9 +46,9 @@
 
 ## Validation
 - Command: `pytest -q`
-- Result: `20 passed`
+- Result: `22 passed`
   - Property-based suite is auto-skipped when `hypothesis` is unavailable.
 
 ## Next
 - add tool-level tracing correlation IDs across journal + telemetry.
-- enforce Hypothesis in CI dev environment to execute property suite on every run.
+- tighten domain typing to allow stricter mypy profile.

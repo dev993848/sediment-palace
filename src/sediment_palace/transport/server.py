@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from pathlib import Path
 from typing import Any
 
 from sediment_palace.application.memory_service import MemoryService
+from sediment_palace.config import AppConfig, load_config
 from sediment_palace.domain.errors import SedimentPalaceError
 from sediment_palace.infrastructure.filesystem_memory_repository import (
     FileSystemMemoryRepository,
@@ -14,27 +16,31 @@ from sediment_palace.infrastructure.telemetry import TelemetryRecorder
 
 
 class SedimentPalaceServer:
-    def __init__(self, project_root: Path) -> None:
-        repository = FileSystemMemoryRepository(project_root=project_root)
+    def __init__(self, project_root: Path | None = None, *, config: AppConfig | None = None) -> None:
+        self.config = config or load_config()
+        resolved_root = project_root or self.config.project_root
+        repository = FileSystemMemoryRepository(project_root=resolved_root)
         self.service = MemoryService(repository=repository)
         self.telemetry = TelemetryRecorder(system_root=repository.system_root)
         self.tool_timeouts_seconds: dict[str, float] = {
-            "read_map": 1.0,
-            "write_memory": 2.0,
-            "read_memory": 2.0,
-            "search_room": 2.0,
-            "move_file": 2.0,
-            "update_map": 1.0,
-            "recover_journal": 3.0,
-            "metabolize": 5.0,
-            "purge_memory": 2.0,
+            "read_map": self.config.timeout_default_seconds,
+            "write_memory": self.config.timeout_default_seconds,
+            "read_memory": self.config.timeout_default_seconds,
+            "search_room": self.config.timeout_default_seconds,
+            "move_file": self.config.timeout_default_seconds,
+            "update_map": self.config.timeout_default_seconds,
+            "recover_journal": self.config.timeout_default_seconds + 1.0,
+            "metabolize": self.config.timeout_metabolize_seconds,
+            "purge_memory": self.config.timeout_default_seconds,
+            "healthcheck": self.config.timeout_default_seconds,
+            "get_metrics": self.config.timeout_default_seconds,
         }
         self.tool_input_budgets: dict[str, int] = {
-            "write_memory.content": 50_000,
-            "read_memory.query": 512,
-            "search_room.query": 512,
-            "search_room.room": 1_024,
-            "purge_memory.reason": 1_024,
+            "write_memory.content": self.config.write_content_budget,
+            "read_memory.query": self.config.read_query_budget,
+            "search_room.query": self.config.search_query_budget,
+            "search_room.room": self.config.search_room_budget,
+            "purge_memory.reason": self.config.purge_reason_budget,
         }
 
     def handle_request(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -133,8 +139,7 @@ class SedimentPalaceServer:
                     error_code="invalid_arguments",
                     message="search_room requires room and query",
                 )
-            response = self.service.search_room(room=room, query=query)
-            return response
+            return self.service.search_room(room=room, query=query)
         if tool_name == "move_file":
             source = arguments.get("source")
             dest_layer = arguments.get("dest_layer")
@@ -143,12 +148,11 @@ class SedimentPalaceServer:
                     error_code="invalid_arguments",
                     message="move_file requires source and dest_layer",
                 )
-            response = self.service.move_file(
+            return self.service.move_file(
                 source=source,
                 dest_layer=dest_layer,
                 new_path=arguments.get("new_path"),
             )
-            return response
         if tool_name == "update_map":
             action = arguments.get("action")
             details = arguments.get("details", {})
@@ -157,8 +161,7 @@ class SedimentPalaceServer:
                     error_code="invalid_arguments",
                     message="update_map requires action",
                 )
-            response = self.service.update_map(action=action, details=details)
-            return response
+            return self.service.update_map(action=action, details=details)
         if tool_name == "recover_journal":
             response = self.service.recover_journal()
             return response
@@ -177,14 +180,20 @@ class SedimentPalaceServer:
                     error_code="invalid_arguments",
                     message="purge_memory requires path",
                 )
-            response = self.service.purge_memory(
+            return self.service.purge_memory(
                 path=path,
                 reason=reason,
                 confirm=bool(arguments.get("confirm", False)),
             )
-            return response
         if tool_name == "get_metrics":
             return self.telemetry.snapshot()
+        if tool_name == "healthcheck":
+            return {
+                "status": "ok",
+                "service": "sediment-palace",
+                "version": "0.1.0",
+                "project_root": str(self.config.project_root),
+            }
         raise SedimentPalaceError(
             error_code="tool_not_found",
             message=f"tool not found: {tool_name}",
@@ -222,7 +231,11 @@ class SedimentPalaceServer:
 
     def _tool_schemas(self) -> list[dict[str, Any]]:
         return [
-            {"name": "read_map", "description": "Read PALACE_MAP.md", "inputSchema": {"type": "object", "properties": {}}},
+            {
+                "name": "read_map",
+                "description": "Read PALACE_MAP.md",
+                "inputSchema": {"type": "object", "properties": {}},
+            },
             {
                 "name": "write_memory",
                 "description": "Create or update memory entry",
@@ -320,6 +333,11 @@ class SedimentPalaceServer:
             {
                 "name": "get_metrics",
                 "description": "Return telemetry counters and duration aggregates per tool",
+                "inputSchema": {"type": "object", "properties": {}},
+            },
+            {
+                "name": "healthcheck",
+                "description": "Return service health and runtime config basics",
                 "inputSchema": {"type": "object", "properties": {}},
             },
         ]

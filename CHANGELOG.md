@@ -23,7 +23,10 @@ The format is based on Keep a Changelog principles and this project follows sema
 - Switched transport tool responses to structured JSON payloads (`result.data` / `result.error`).
 - Added per-tool telemetry recorder and `get_metrics` tool.
 - Added Hypothesis-based property test module for metabolize invariants.
-- Test suites (unit/integration/e2e) for MVP flows.
+- Added runtime config loading from environment variables.
+- Added `healthcheck` tool and CI pipeline (`ruff`, `mypy`, `pytest`).
+- Test suites (unit/integration/e2e/property) for MVP flows.
+- Local quality gates verified green (`ruff`, `mypy`, `pytest`).
 - Project status tracker `project/STATUS.md`.
 
 ## [2026-04-20]

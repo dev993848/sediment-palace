@@ -1,9 +1,8 @@
-import shutil
-from datetime import timedelta, timezone
+from datetime import UTC, timedelta
 from pathlib import Path
 
 import pytest
-
+from conftest import make_workdir
 from sediment_palace.domain.errors import SedimentPalaceError
 from sediment_palace.domain.frontmatter import compose_frontmatter, split_frontmatter
 from sediment_palace.domain.models import utc_now
@@ -13,11 +12,7 @@ from sediment_palace.infrastructure.filesystem_memory_repository import (
 
 
 def _new_project_root() -> Path:
-    root = Path("tests/fixtures/work1").resolve()
-    if root.exists():
-        shutil.rmtree(root)
-    root.mkdir(parents=True, exist_ok=True)
-    return root
+    return make_workdir("work1")
 
 
 def test_write_and_read_by_path():
@@ -145,7 +140,7 @@ def test_metabolize_promotes_and_archives_with_confirm():
         metadata["density"] = density
         if density < 0.2:
             metadata["streak"] = -2
-        metadata["last_touched"] = (utc_now() - timedelta(days=10)).astimezone(timezone.utc).isoformat()
+        metadata["last_touched"] = (utc_now() - timedelta(days=10)).astimezone(UTC).isoformat()
         file_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
 
     result = repo.metabolize(confirm=True)
@@ -168,7 +163,7 @@ def test_metabolize_dry_run_does_not_mutate():
     raw = src_path.read_text(encoding="utf-8")
     metadata, body = split_frontmatter(raw)
     metadata["density"] = 0.9
-    metadata["last_touched"] = (utc_now() - timedelta(days=14)).astimezone(timezone.utc).isoformat()
+    metadata["last_touched"] = (utc_now() - timedelta(days=14)).astimezone(UTC).isoformat()
     src_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
 
     result = repo.metabolize(dry_run=True)
@@ -191,7 +186,7 @@ def test_metabolize_updates_streak_and_decaying_status():
     metadata, body = split_frontmatter(raw)
     metadata["density"] = 0.3
     metadata["streak"] = 1
-    metadata["last_touched"] = (utc_now() - timedelta(days=9)).astimezone(timezone.utc).isoformat()
+    metadata["last_touched"] = (utc_now() - timedelta(days=9)).astimezone(UTC).isoformat()
     src_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
 
     result = repo.metabolize(confirm=True, days_threshold=7)

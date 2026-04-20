@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
-from dataclasses import dataclass
-from datetime import timezone
+from dataclasses import asdict, dataclass
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -31,7 +30,7 @@ class OperationJournal:
         operation_id = uuid4().hex
         self.append(
             JournalEvent(
-                timestamp=utc_now().astimezone(timezone.utc).isoformat(),
+                timestamp=utc_now().astimezone(UTC).isoformat(),
                 operation_id=operation_id,
                 operation=operation,
                 state="started",
@@ -43,7 +42,7 @@ class OperationJournal:
     def complete(self, operation_id: str, operation: str, payload: dict[str, Any]) -> None:
         self.append(
             JournalEvent(
-                timestamp=utc_now().astimezone(timezone.utc).isoformat(),
+                timestamp=utc_now().astimezone(UTC).isoformat(),
                 operation_id=operation_id,
                 operation=operation,
                 state="completed",

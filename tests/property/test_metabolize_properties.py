@@ -1,30 +1,33 @@
-import shutil
-from datetime import timedelta, timezone
+from datetime import UTC, timedelta
 from pathlib import Path
 
 import pytest
-
-hypothesis = pytest.importorskip("hypothesis", reason="hypothesis is required for property-based tests")
-st = hypothesis.strategies
-given = hypothesis.given
-settings = hypothesis.settings
-
+from conftest import make_workdir
 from sediment_palace.domain.frontmatter import compose_frontmatter, split_frontmatter
 from sediment_palace.domain.models import utc_now
 from sediment_palace.infrastructure.filesystem_memory_repository import (
     FileSystemMemoryRepository,
 )
 
+try:
+    from hypothesis import given, settings
+    from hypothesis import strategies as st
+except ModuleNotFoundError:  # pragma: no cover - optional dependency in local env
+    pytest.skip("hypothesis is required for property-based tests", allow_module_level=True)
+
 
 def _new_project_root() -> Path:
-    root = Path("tests/fixtures/work3").resolve()
-    if root.exists():
-        shutil.rmtree(root)
-    root.mkdir(parents=True, exist_ok=True)
-    return root
+    return make_workdir("work3")
 
 
-def _seed_shallow_file(repo: FileSystemMemoryRepository, *, name: str, density: float, age_days: int, streak: int) -> str:
+def _seed_shallow_file(
+    repo: FileSystemMemoryRepository,
+    *,
+    name: str,
+    density: float,
+    age_days: int,
+    streak: int,
+) -> str:
     saved = repo.write_memory(
         layer="shallow",
         path=f"ideas/{name}",
@@ -37,7 +40,7 @@ def _seed_shallow_file(repo: FileSystemMemoryRepository, *, name: str, density: 
     metadata, body = split_frontmatter(raw)
     metadata["density"] = density
     metadata["streak"] = streak
-    metadata["last_touched"] = (utc_now() - timedelta(days=age_days)).astimezone(timezone.utc).isoformat()
+    metadata["last_touched"] = (utc_now() - timedelta(days=age_days)).astimezone(UTC).isoformat()
     path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
     return saved
 
