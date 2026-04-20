@@ -10,6 +10,7 @@ from sediment_palace.domain.frontmatter import compose_frontmatter, split_frontm
 from sediment_palace.domain.models import LayerName, MemoryEntry, utc_now
 from sediment_palace.infrastructure.journal import OperationJournal
 from sediment_palace.infrastructure.lock_manager import FileLockManager
+from sediment_palace.infrastructure.policy import PolicyEngine
 
 LAYER_DIRS: dict[LayerName, str] = {
     "shallow": "01_Shallow",
@@ -25,7 +26,7 @@ DEFAULT_DECAY_DAYS: dict[LayerName, int] = {
 
 
 class FileSystemMemoryRepository:
-    def __init__(self, project_root: Path) -> None:
+    def __init__(self, project_root: Path, *, failpoints: dict[str, bool] | None = None) -> None:
         self.project_root = project_root.resolve()
         self.memory_root = (self.project_root / "memory").resolve()
         self.map_file = self.memory_root / "PALACE_MAP.md"
@@ -33,6 +34,8 @@ class FileSystemMemoryRepository:
         self.archive_root = self.memory_root / "_Archive"
         self.lock_manager = FileLockManager(lock_root=self.system_root / "locks")
         self.journal = OperationJournal(path=self.system_root / "journal.log")
+        self.policy = PolicyEngine(system_root=self.system_root)
+        self.failpoints = failpoints or {}
 
     def ensure_layout(self) -> None:
         self.memory_root.mkdir(parents=True, exist_ok=True)
@@ -64,6 +67,7 @@ class FileSystemMemoryRepository:
         )
 
         def _action() -> str:
+            self._maybe_fail("write_memory_after_start")
             now = utc_now()
             existing = self._read_entry_if_exists(target)
             if existing is None:
@@ -160,6 +164,7 @@ class FileSystemMemoryRepository:
 
         matches: list[dict[str, str]] = []
         needle = query.lower()
+        max_matches = self.policy.max_search_matches()
         for md_file in room_path.rglob("*.md"):
             raw = md_file.read_text(encoding="utf-8")
             metadata, body = split_frontmatter(raw)
@@ -172,6 +177,8 @@ class FileSystemMemoryRepository:
                         "snippet": body.strip()[:200],
                     }
                 )
+                if len(matches) >= max_matches:
+                    break
         return {"room": room, "query": query, "matches": matches}
 
     def move_file(self, *, source: str, dest_layer: LayerName, new_path: str | None = None) -> dict[str, str]:
@@ -207,6 +214,7 @@ class FileSystemMemoryRepository:
         )
 
         def _action() -> dict[str, str]:
+            self._maybe_fail("move_file_after_start")
             raw = source_file.read_text(encoding="utf-8")
             metadata, body = split_frontmatter(raw)
             metadata["layer"] = dest_layer
@@ -241,6 +249,7 @@ class FileSystemMemoryRepository:
         op_id = self.journal.start("update_map", {"action": action, "link": link})
 
         def _action() -> dict[str, str]:
+            self._maybe_fail("update_map_after_start")
             current = self.map_file.read_text(encoding="utf-8")
             lines = current.splitlines()
             marker = "## Links"
@@ -319,7 +328,7 @@ class FileSystemMemoryRepository:
 
     def purge_memory(self, *, path: str, reason: str, confirm: bool = False) -> dict[str, str]:
         self.ensure_layout()
-        self._require_destructive_confirm(confirm=confirm, operation="purge_memory")
+        self.policy.assert_destructive_allowed(confirm=confirm, operation="purge_memory")
         target = self._resolve_path_in_memory(path)
         if not target.exists() or not target.is_file():
             raise SedimentPalaceError(
@@ -335,6 +344,7 @@ class FileSystemMemoryRepository:
         )
 
         def _action() -> dict[str, str]:
+            self._maybe_fail("purge_memory_after_start")
             raw = target.read_text(encoding="utf-8")
             metadata, body = split_frontmatter(raw)
             if metadata:
@@ -364,7 +374,7 @@ class FileSystemMemoryRepository:
     ) -> dict[str, object]:
         self.ensure_layout()
         if not dry_run:
-            self._require_destructive_confirm(confirm=confirm, operation="metabolize")
+            self.policy.assert_destructive_allowed(confirm=confirm, operation="metabolize")
 
         op_id = self.journal.start(
             "metabolize",
@@ -372,10 +382,12 @@ class FileSystemMemoryRepository:
         )
 
         def _action() -> dict[str, object]:
+            self._maybe_fail("metabolize_after_start")
             promoted: list[str] = []
             archived: list[str] = []
             scanned = 0
             now = utc_now()
+            scan_budget = self.policy.max_metabolize_scan()
 
             for md_file in self.memory_root.rglob("*.md"):
                 if md_file == self.map_file:
@@ -383,6 +395,8 @@ class FileSystemMemoryRepository:
                 if "_System" in md_file.parts or "_Archive" in md_file.parts:
                     continue
                 scanned += 1
+                if scanned > scan_budget:
+                    break
                 raw = md_file.read_text(encoding="utf-8")
                 metadata, body = split_frontmatter(raw)
                 if not metadata:
@@ -565,11 +579,11 @@ class FileSystemMemoryRepository:
         self._atomic_write(destination, compose_frontmatter(metadata, body.strip()))
         source.unlink()
 
-    def _require_destructive_confirm(self, *, confirm: bool, operation: str) -> None:
-        if confirm:
-            return
-        raise SedimentPalaceError(
-            error_code="policy_violation",
-            message=f"{operation} requires confirm=true",
-            context={"operation": operation},
-        )
+    def _maybe_fail(self, key: str) -> None:
+        if self.failpoints.get(key, False):
+            raise SedimentPalaceError(
+                error_code="injected_failure",
+                message=f"injected failure at {key}",
+                retryable=True,
+                context={"failpoint": key},
+            )

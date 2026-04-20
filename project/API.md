@@ -43,6 +43,11 @@
 - `context`
 - `retryable`
 
+Additional operational error codes now used:
+- `policy_violation`
+- `rate_limited`
+- `injected_failure` (test/fault-injection scenarios)
+
 ## Idempotency Rules
 - `write_memory`: idempotent for same `(path, content)`.
 - `move_file`: idempotent if source already moved to target.

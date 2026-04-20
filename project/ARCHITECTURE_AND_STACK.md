@@ -33,6 +33,12 @@ Modular monolith with clear boundaries:
 - Audit trail for destructive ops.
 - Metrics: files scanned, promoted, archived, deleted, duration.
 
+6. Policy Engine
+- Config-driven policy in `memory/_System/policy.yaml`.
+- Destructive operation confirmation policy.
+- Rate limiting for destructive operations.
+- Runtime limits (search matches, metabolize scan budget).
+
 ## Data Model (v1)
 Mandatory frontmatter fields:
 - `id`, `layer`, `created`, `last_touched`, `density`, `decay_days`, `tags`, `status`, `source_session`.

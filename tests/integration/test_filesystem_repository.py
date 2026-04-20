@@ -191,3 +191,45 @@ def test_purge_memory_requires_confirm():
     result = repo.purge_memory(path=src, reason="test", confirm=True)
     assert result["archived_to"].startswith("_Archive/")
     assert not (repo.memory_root / src).exists()
+
+
+def test_policy_rate_limit_for_destructive_ops():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    policy_file = repo.memory_root / "_System" / "policy.yaml"
+    policy_file.write_text(
+        (
+            "destructive_require_confirm: true\n"
+            "limits:\n"
+            "  max_search_matches: 100\n"
+            "  max_metabolize_scan: 5000\n"
+            "rate_limit:\n"
+            "  window_seconds: 3600\n"
+            "  max_destructive_ops: 1\n"
+        ),
+        encoding="utf-8",
+    )
+    repo.metabolize(dry_run=False, confirm=True)
+    with pytest.raises(SedimentPalaceError) as exc:
+        repo.metabolize(dry_run=False, confirm=True)
+    assert exc.value.error_code == "rate_limited"
+
+
+def test_fault_injection_and_recovery_flow():
+    repo = FileSystemMemoryRepository(
+        project_root=_new_project_root(),
+        failpoints={"write_memory_after_start": True},
+    )
+    with pytest.raises(SedimentPalaceError) as exc:
+        repo.write_memory(
+            layer="shallow",
+            path="ideas/faulty",
+            content="boom",
+            tags=[],
+            source_session="test",
+        )
+    assert exc.value.error_code == "injected_failure"
+
+    recovered = repo.recover_journal()
+    assert recovered["unresolved_count"] >= 1
+    assert recovered["recovered_count"] >= 1
+    assert not (repo.memory_root / "01_Shallow/ideas/faulty.md").exists()

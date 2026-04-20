@@ -27,6 +27,8 @@
 - append-only operation journal
 - atomic write helper for mutating operations
 - policy checks for destructive operations (`confirm=true`)
+- policy engine with config-driven limits and destructive-op rate limiting
+- fault-injection path for crash-consistency tests
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -34,8 +36,8 @@
 
 ## Validation
 - Command: `pytest -q`
-- Result: `14 passed`
+- Result: `16 passed`
 
 ## Next
-- Add stronger policy engine (role/allowlist/rate-limits).
 - Extend metabolize rules (streak-based transitions, archival policies).
+- Add operation budgets/timeouts at transport layer.

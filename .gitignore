@@ -13,7 +13,9 @@ Thumbs.db
 memory/_System/backups/
 memory/_System/locks/
 memory/_System/journal.log
+memory/_System/policy_events.log
 memory/_Archive/
+memory/
 memory/02_Sediment/_Graveyard/
 tests/fixtures/work*/
 .tmp/
