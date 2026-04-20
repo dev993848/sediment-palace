@@ -34,3 +34,12 @@ class MemoryService:
         self, *, path: str | None = None, query: str | None = None, layer: LayerName | None = None
     ) -> dict[str, object]:
         return self.repository.read_memory(path=path, query=query, layer=layer)
+
+    def search_room(self, *, room: str, query: str) -> dict[str, object]:
+        return self.repository.search_room(room=room, query=query)
+
+    def move_file(self, *, source: str, dest_layer: LayerName, new_path: str | None = None) -> dict[str, str]:
+        return self.repository.move_file(source=source, dest_layer=dest_layer, new_path=new_path)
+
+    def update_map(self, *, action: str, details: dict[str, object]) -> dict[str, str]:
+        return self.repository.update_map(action=action, details=details)

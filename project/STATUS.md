@@ -12,20 +12,22 @@
   - `src/sediment_palace/domain`
   - `src/sediment_palace/infrastructure`
 - Implemented MVP tools:
-  - `read_map`
-  - `write_memory`
-  - `read_memory` (path/query mode)
+- `read_map`
+- `write_memory`
+- `read_memory` (path/query mode)
+- `search_room`
+- `move_file`
+- `update_map`
 - Added typed domain errors and frontmatter helpers.
 - Added tests:
-  - unit: frontmatter parsing/serialization
-  - integration: filesystem repository behaviors
-  - e2e: JSON-RPC tool flow
+- unit: frontmatter parsing/serialization
+- integration: filesystem repository behaviors
+- e2e: JSON-RPC tool flow
 
 ## Validation
 - Command: `pytest -q`
-- Result: `6 passed`
+- Result: `8 passed`
 
 ## Next
-- Implement `search_room`, `move_file`, `update_map`.
 - Add lock manager and operation journal.
 - Introduce policy checks for destructive operations.

@@ -75,6 +75,40 @@ class SedimentPalaceServer:
                 layer=arguments.get("layer"),
             )
             return str(response)
+        if tool_name == "search_room":
+            room = arguments.get("room")
+            query = arguments.get("query")
+            if not room or not query:
+                raise SedimentPalaceError(
+                    error_code="invalid_arguments",
+                    message="search_room requires room and query",
+                )
+            response = self.service.search_room(room=room, query=query)
+            return str(response)
+        if tool_name == "move_file":
+            source = arguments.get("source")
+            dest_layer = arguments.get("dest_layer")
+            if not source or not dest_layer:
+                raise SedimentPalaceError(
+                    error_code="invalid_arguments",
+                    message="move_file requires source and dest_layer",
+                )
+            response = self.service.move_file(
+                source=source,
+                dest_layer=dest_layer,
+                new_path=arguments.get("new_path"),
+            )
+            return str(response)
+        if tool_name == "update_map":
+            action = arguments.get("action")
+            details = arguments.get("details", {})
+            if not action:
+                raise SedimentPalaceError(
+                    error_code="invalid_arguments",
+                    message="update_map requires action",
+                )
+            response = self.service.update_map(action=action, details=details)
+            return str(response)
         raise SedimentPalaceError(
             error_code="tool_not_found",
             message=f"tool not found: {tool_name}",
@@ -109,6 +143,43 @@ class SedimentPalaceServer:
                         "query": {"type": "string"},
                         "layer": {"type": "string", "enum": ["shallow", "sediment", "bedrock"]},
                     },
+                },
+            },
+            {
+                "name": "search_room",
+                "description": "Search room directory by query",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "room": {"type": "string"},
+                        "query": {"type": "string"},
+                    },
+                    "required": ["room", "query"],
+                },
+            },
+            {
+                "name": "move_file",
+                "description": "Move file to another layer",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "source": {"type": "string"},
+                        "dest_layer": {"type": "string", "enum": ["shallow", "sediment", "bedrock"]},
+                        "new_path": {"type": "string"},
+                    },
+                    "required": ["source", "dest_layer"],
+                },
+            },
+            {
+                "name": "update_map",
+                "description": "Add or remove links in PALACE_MAP.md",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add_link", "remove_link"]},
+                        "details": {"type": "object"},
+                    },
+                    "required": ["action", "details"],
                 },
             },
         ]

@@ -130,6 +130,101 @@ class FileSystemMemoryRepository:
                 )
         return {"query": query, "layer": layer, "matches": matches}
 
+    def search_room(self, *, room: str, query: str) -> dict[str, object]:
+        self.ensure_layout()
+        room_path = self._resolve_path_in_memory(room)
+        if not room_path.exists() or not room_path.is_dir():
+            raise SedimentPalaceError(
+                error_code="not_found",
+                message=f"room not found: {room}",
+                context={"room": room},
+            )
+
+        matches: list[dict[str, str]] = []
+        needle = query.lower()
+        for md_file in room_path.rglob("*.md"):
+            raw = md_file.read_text(encoding="utf-8")
+            metadata, body = split_frontmatter(raw)
+            tags = metadata.get("tags", [])
+            haystack = f"{body}\n{tags}".lower()
+            if needle in haystack:
+                matches.append(
+                    {
+                        "path": str(md_file.relative_to(self.memory_root)).replace("\\", "/"),
+                        "snippet": body.strip()[:200],
+                    }
+                )
+        return {"room": room, "query": query, "matches": matches}
+
+    def move_file(self, *, source: str, dest_layer: LayerName, new_path: str | None = None) -> dict[str, str]:
+        self.ensure_layout()
+        source_file = self._resolve_path_in_memory(source)
+        if not source_file.exists() or not source_file.is_file():
+            raise SedimentPalaceError(
+                error_code="not_found",
+                message=f"source file not found: {source}",
+                context={"source": source},
+            )
+
+        destination_relative = new_path or source_file.name
+        destination_file = self._resolve_target(layer=dest_layer, relative_path=destination_relative)
+        destination_file.parent.mkdir(parents=True, exist_ok=True)
+        if destination_file.exists():
+            raise SedimentPalaceError(
+                error_code="conflict",
+                message="destination file already exists",
+                context={
+                    "source": str(source_file.relative_to(self.memory_root)).replace("\\", "/"),
+                    "destination": str(destination_file.relative_to(self.memory_root)).replace("\\", "/"),
+                },
+            )
+
+        raw = source_file.read_text(encoding="utf-8")
+        metadata, body = split_frontmatter(raw)
+        metadata["layer"] = dest_layer
+        metadata["last_touched"] = utc_now().astimezone(timezone.utc).isoformat()
+        destination_file.write_text(compose_frontmatter(metadata, body.strip()), encoding="utf-8")
+        source_file.unlink()
+
+        return {
+            "source": source,
+            "destination": str(destination_file.relative_to(self.memory_root)).replace("\\", "/"),
+        }
+
+    def update_map(self, *, action: str, details: dict[str, object]) -> dict[str, str]:
+        self.ensure_layout()
+        if action not in {"add_link", "remove_link"}:
+            raise SedimentPalaceError(
+                error_code="invalid_arguments",
+                message="update_map action must be add_link or remove_link",
+                context={"action": action},
+            )
+
+        link = str(details.get("link", "")).strip()
+        if not link:
+            raise SedimentPalaceError(
+                error_code="invalid_arguments",
+                message="update_map requires details.link",
+            )
+
+        current = self.map_file.read_text(encoding="utf-8")
+        lines = current.splitlines()
+        marker = "## Links"
+        if marker not in lines:
+            lines.extend(["", marker])
+        marker_idx = lines.index(marker)
+        payload_line = f"- {link}"
+        link_lines = lines[marker_idx + 1 :]
+
+        if action == "add_link":
+            if payload_line not in link_lines:
+                lines.append(payload_line)
+        else:
+            lines = [line for line in lines if line != payload_line]
+
+        self.map_file.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+        return {"action": action, "link": link}
+
     def _resolve_target(self, *, layer: LayerName, relative_path: str) -> Path:
         layer_dir = self.memory_root / LAYER_DIRS[layer]
         rel = Path(relative_path)

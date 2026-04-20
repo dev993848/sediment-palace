@@ -16,14 +16,14 @@
 3. `read_memory(path? | query?, layer?)`  `implemented in MVP`
 - Reads by path or searches by query.
 
-4. `search_room(room, query)`  `planned`
+4. `search_room(room, query)`  `implemented in MVP`
 - Scoped room search by content/tags.
 
-5. `move_file(source, dest_layer, new_path?)`  `planned`
+5. `move_file(source, dest_layer, new_path?)`  `implemented in MVP`
 - Moves file between layers.
 - Updates metadata and map links.
 
-6. `update_map(action, details)`  `planned`
+6. `update_map(action, details)`  `implemented in MVP`
 - Adds/removes/links references in map/journal.
 
 7. `metabolize(days_threshold?, dry_run?)`  `planned`
