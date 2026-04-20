@@ -1,4 +1,5 @@
 import shutil
+import time
 from pathlib import Path
 
 from sediment_palace.transport.server import SedimentPalaceServer
@@ -169,3 +170,41 @@ def test_metabolize_and_purge_policy_flow():
         }
     )
     assert "dry_run" in dry_metabolize["result"]["content"][0]["text"]
+
+
+def test_transport_timeout_budget():
+    server = SedimentPalaceServer(project_root=_new_project_root())
+    server.tool_timeouts_seconds["read_map"] = 0.01
+
+    original = server.service.read_map
+
+    def slow_read_map():
+        time.sleep(0.05)
+        return original()
+
+    server.service.read_map = slow_read_map  # type: ignore[method-assign]
+    response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 40,
+            "method": "tools/call",
+            "params": {"name": "read_map", "arguments": {}},
+        }
+    )
+    assert response["result"]["isError"] is True
+    assert "timeout_exceeded" in response["result"]["content"][0]["text"]
+
+
+def test_transport_input_budget():
+    server = SedimentPalaceServer(project_root=_new_project_root())
+    too_long_query = "x" * 1025
+    response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 41,
+            "method": "tools/call",
+            "params": {"name": "search_room", "arguments": {"room": too_long_query, "query": "q"}},
+        }
+    )
+    assert response["result"]["isError"] is True
+    assert "budget_exceeded" in response["result"]["content"][0]["text"]

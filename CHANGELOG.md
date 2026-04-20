@@ -18,6 +18,8 @@ The format is based on Keep a Changelog principles and this project follows sema
 - Added atomic write path for mutating repository operations.
 - Added policy engine with config-based limits and destructive-op rate limiting.
 - Added fault-injection test path for crash-consistency/recovery validation.
+- Added transport-level input budgets and per-tool timeout enforcement.
+- Expanded metabolize rules with streak-based transitions and decaying intermediate state.
 - Test suites (unit/integration/e2e) for MVP flows.
 - Project status tracker `project/STATUS.md`.
 

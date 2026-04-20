@@ -18,6 +18,7 @@ class MemoryEntry:
     created: datetime
     last_touched: datetime
     density: float
+    streak: int
     decay_days: int
     tags: list[str]
     status: str

@@ -12,6 +12,7 @@ Modular monolith with clear boundaries:
 - Parses JSON-RPC.
 - Validates tool input.
 - Maps typed domain errors to MCP error responses.
+- Enforces transport-level budgets and per-tool timeout limits.
 
 2. Memory Application Service
 - Executes use-cases.
@@ -21,6 +22,7 @@ Modular monolith with clear boundaries:
 - Deterministic state transitions (shallow/sediment/bedrock).
 - Density/streak/age evaluation.
 - Promotion/archive/delete decisions.
+- In-place decay status updates (`active` -> `decaying`) before archival.
 
 4. Persistence Layer (File-Native)
 - Markdown files with YAML frontmatter.

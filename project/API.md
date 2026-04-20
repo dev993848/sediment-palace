@@ -28,6 +28,7 @@
 
 7. `metabolize(days_threshold?, dry_run?, confirm?)`  `implemented in MVP`
 - Executes decay/promotion/archive workflow.
+- Includes streak-aware transitions and decaying intermediate state.
 
 8. `purge_memory(path, reason, confirm?)`  `implemented in MVP`
 - Destructive operation; requires policy approval.
@@ -47,6 +48,8 @@ Additional operational error codes now used:
 - `policy_violation`
 - `rate_limited`
 - `injected_failure` (test/fault-injection scenarios)
+- `budget_exceeded`
+- `timeout_exceeded`
 
 ## Idempotency Rules
 - `write_memory`: idempotent for same `(path, content)`.

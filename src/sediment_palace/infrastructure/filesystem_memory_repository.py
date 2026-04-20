@@ -77,6 +77,7 @@ class FileSystemMemoryRepository:
                     created=now,
                     last_touched=now,
                     density=0.2,
+                    streak=0,
                     decay_days=DEFAULT_DECAY_DAYS[layer],
                     tags=tags or [],
                     status="active",
@@ -90,6 +91,7 @@ class FileSystemMemoryRepository:
                     created=existing.created,
                     last_touched=now,
                     density=existing.density,
+                    streak=existing.streak,
                     decay_days=existing.decay_days,
                     tags=tags if tags is not None else existing.tags,
                     status=existing.status,
@@ -385,6 +387,7 @@ class FileSystemMemoryRepository:
             self._maybe_fail("metabolize_after_start")
             promoted: list[str] = []
             archived: list[str] = []
+            decaying: list[str] = []
             scanned = 0
             now = utc_now()
             scan_budget = self.policy.max_metabolize_scan()
@@ -408,8 +411,12 @@ class FileSystemMemoryRepository:
                 decay_days = int(metadata.get("decay_days", 7))
                 density = float(metadata.get("density", 0.0))
                 stale_threshold = days_threshold if days_threshold is not None else decay_days
+                streak = int(metadata.get("streak", 0))
 
                 if layer == "shallow" and age_days > stale_threshold:
+                    streak = max(-3, streak - 1)
+                    metadata["streak"] = streak
+                    metadata["status"] = "decaying"
                     if density >= 0.5:
                         destination = self._resolve_target(
                             layer="sediment",
@@ -425,7 +432,7 @@ class FileSystemMemoryRepository:
                                 layer="sediment",
                                 status="active",
                             )
-                    else:
+                    elif streak <= -2:
                         archive_path = self.archive_root / md_file.relative_to(self.memory_root)
                         archived.append(str(archive_path.relative_to(self.memory_root)).replace("\\", "/"))
                         if not dry_run:
@@ -435,30 +442,54 @@ class FileSystemMemoryRepository:
                                 body=body,
                                 metadata=metadata,
                             )
+                    else:
+                        decaying.append(str(md_file.relative_to(self.memory_root)).replace("\\", "/"))
+                        if not dry_run:
+                            self._atomic_write(md_file, compose_frontmatter(metadata, body.strip()))
 
-                if layer == "sediment" and age_days > 30 and density >= 0.8:
-                    destination = self._resolve_target(
-                        layer="bedrock",
-                        relative_path=str(md_file.relative_to(self.memory_root / LAYER_DIRS["sediment"])),
-                    )
-                    promoted.append(str(destination.relative_to(self.memory_root)).replace("\\", "/"))
+                elif layer == "shallow":
+                    metadata["streak"] = min(10, streak + 1)
+                    metadata["status"] = "active"
                     if not dry_run:
-                        self._move_with_metadata(
-                            source=md_file,
-                            destination=destination,
-                            body=body,
-                            metadata=metadata,
+                        self._atomic_write(md_file, compose_frontmatter(metadata, body.strip()))
+
+                if layer == "sediment":
+                    if age_days > 30 and (density >= 0.8 or streak >= 5):
+                        destination = self._resolve_target(
                             layer="bedrock",
-                            status="crystallized",
+                            relative_path=str(md_file.relative_to(self.memory_root / LAYER_DIRS["sediment"])),
                         )
+                        promoted.append(str(destination.relative_to(self.memory_root)).replace("\\", "/"))
+                        if not dry_run:
+                            self._move_with_metadata(
+                                source=md_file,
+                                destination=destination,
+                                body=body,
+                                metadata=metadata,
+                                layer="bedrock",
+                                status="crystallized",
+                            )
+                    elif age_days > stale_threshold and density < 0.2:
+                        metadata["streak"] = max(-3, streak - 1)
+                        metadata["status"] = "decaying"
+                        decaying.append(str(md_file.relative_to(self.memory_root)).replace("\\", "/"))
+                        if not dry_run:
+                            self._atomic_write(md_file, compose_frontmatter(metadata, body.strip()))
+                    else:
+                        metadata["streak"] = min(10, streak + 1)
+                        metadata["status"] = "active"
+                        if not dry_run:
+                            self._atomic_write(md_file, compose_frontmatter(metadata, body.strip()))
 
             return {
                 "dry_run": dry_run,
                 "scanned": scanned,
                 "promoted_count": len(promoted),
                 "archived_count": len(archived),
+                "decaying_count": len(decaying),
                 "promoted": promoted,
                 "archived": archived,
+                "decaying": decaying,
             }
 
         result = self._with_lock("metabolize", _action)
@@ -509,6 +540,7 @@ class FileSystemMemoryRepository:
             created=created,
             last_touched=last_touched,
             density=float(metadata.get("density", 0.2)),
+            streak=int(metadata.get("streak", 0)),
             decay_days=int(metadata.get("decay_days", 7)),
             tags=list(metadata.get("tags", [])),
             status=str(metadata.get("status", "active")),
@@ -523,6 +555,7 @@ class FileSystemMemoryRepository:
             "created": entry.created.astimezone(timezone.utc).isoformat(),
             "last_touched": entry.last_touched.astimezone(timezone.utc).isoformat(),
             "density": float(entry.density),
+            "streak": int(entry.streak),
             "decay_days": int(entry.decay_days),
             "tags": list(entry.tags),
             "status": entry.status,

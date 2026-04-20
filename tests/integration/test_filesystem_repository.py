@@ -143,6 +143,8 @@ def test_metabolize_promotes_and_archives_with_confirm():
         raw = file_path.read_text(encoding="utf-8")
         metadata, body = split_frontmatter(raw)
         metadata["density"] = density
+        if density < 0.2:
+            metadata["streak"] = -2
         metadata["last_touched"] = (utc_now() - timedelta(days=10)).astimezone(timezone.utc).isoformat()
         file_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
 
@@ -173,6 +175,30 @@ def test_metabolize_dry_run_does_not_mutate():
     assert result["promoted_count"] >= 1
     assert src_path.exists()
     assert not (repo.memory_root / "02_Sediment/ideas/dry-run.md").exists()
+
+
+def test_metabolize_updates_streak_and_decaying_status():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    src = repo.write_memory(
+        layer="shallow",
+        path="ideas/slow-decay",
+        content="decay check",
+        tags=[],
+        source_session="test",
+    )
+    src_path = repo.memory_root / src
+    raw = src_path.read_text(encoding="utf-8")
+    metadata, body = split_frontmatter(raw)
+    metadata["density"] = 0.3
+    metadata["streak"] = 1
+    metadata["last_touched"] = (utc_now() - timedelta(days=9)).astimezone(timezone.utc).isoformat()
+    src_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
+
+    result = repo.metabolize(confirm=True, days_threshold=7)
+    assert result["decaying_count"] >= 1
+    updated = repo.read_memory(path=src)
+    assert updated["metadata"]["status"] == "decaying"
+    assert int(updated["metadata"]["streak"]) == 0
 
 
 def test_purge_memory_requires_confirm():

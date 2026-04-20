@@ -29,6 +29,8 @@
 - policy checks for destructive operations (`confirm=true`)
 - policy engine with config-driven limits and destructive-op rate limiting
 - fault-injection path for crash-consistency tests
+- transport-level input budgets and per-tool timeout enforcement
+- streak-aware metabolize transitions with decaying intermediate state
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -36,8 +38,9 @@
 
 ## Validation
 - Command: `pytest -q`
-- Result: `16 passed`
+- Result: `19 passed`
 
 ## Next
-- Extend metabolize rules (streak-based transitions, archival policies).
-- Add operation budgets/timeouts at transport layer.
+- tighten typed response format (structured JSON instead of string payloads).
+- add per-tool telemetry (duration/result/error counters).
+- introduce property-based tests for metabolize invariants.

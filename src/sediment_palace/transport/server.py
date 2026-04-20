@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,24 @@ class SedimentPalaceServer:
     def __init__(self, project_root: Path) -> None:
         repository = FileSystemMemoryRepository(project_root=project_root)
         self.service = MemoryService(repository=repository)
+        self.tool_timeouts_seconds: dict[str, float] = {
+            "read_map": 1.0,
+            "write_memory": 2.0,
+            "read_memory": 2.0,
+            "search_room": 2.0,
+            "move_file": 2.0,
+            "update_map": 1.0,
+            "recover_journal": 3.0,
+            "metabolize": 5.0,
+            "purge_memory": 2.0,
+        }
+        self.tool_input_budgets: dict[str, int] = {
+            "write_memory.content": 50_000,
+            "read_memory.query": 512,
+            "search_room.query": 512,
+            "search_room.room": 1_024,
+            "purge_memory.reason": 1_024,
+        }
 
     def handle_request(self, request: dict[str, Any]) -> dict[str, Any]:
         request_id = request.get("id")
@@ -34,7 +53,8 @@ class SedimentPalaceServer:
                 params = request.get("params", {})
                 tool_name = params.get("name")
                 arguments = params.get("arguments", {})
-                result = self._call_tool(tool_name=tool_name, arguments=arguments)
+                self._validate_budgets(tool_name=tool_name, arguments=arguments)
+                result = self._execute_with_timeout(tool_name=tool_name, arguments=arguments)
                 return self._ok(request_id, {"content": [{"type": "text", "text": result}]})
             return self._err(request_id, "method_not_found", f"method not found: {method}")
         except SedimentPalaceError as exc:
@@ -138,6 +158,35 @@ class SedimentPalaceServer:
             message=f"tool not found: {tool_name}",
             context={"tool_name": tool_name},
         )
+
+    def _execute_with_timeout(self, *, tool_name: str, arguments: dict[str, Any]) -> str:
+        timeout = self.tool_timeouts_seconds.get(tool_name, 2.0)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(self._call_tool, tool_name=tool_name, arguments=arguments)
+            try:
+                return future.result(timeout=timeout)
+            except FutureTimeoutError as exc:
+                raise SedimentPalaceError(
+                    error_code="timeout_exceeded",
+                    message=f"{tool_name} exceeded timeout budget",
+                    retryable=True,
+                    context={"tool_name": tool_name, "timeout_seconds": timeout},
+                ) from exc
+
+    def _validate_budgets(self, *, tool_name: str, arguments: dict[str, Any]) -> None:
+        for key, max_size in self.tool_input_budgets.items():
+            budget_tool, budget_field = key.split(".", 1)
+            if budget_tool != tool_name:
+                continue
+            value = arguments.get(budget_field)
+            if value is None:
+                continue
+            if len(str(value)) > max_size:
+                raise SedimentPalaceError(
+                    error_code="budget_exceeded",
+                    message=f"input budget exceeded for {tool_name}.{budget_field}",
+                    context={"max_size": max_size, "actual_size": len(str(value))},
+                )
 
     def _tool_schemas(self) -> list[dict[str, Any]]:
         return [
