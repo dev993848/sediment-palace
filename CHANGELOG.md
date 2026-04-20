@@ -28,6 +28,7 @@ The format is based on Keep a Changelog principles and this project follows sema
 - Test suites (unit/integration/e2e/property) for MVP flows.
 - Local quality gates verified green (`ruff`, `mypy`, `pytest`).
 - Added end-user documentation package under `docs/user`.
+- Added plug-and-play agent bootstrap guide and MCP config examples.
 - Project status tracker `project/STATUS.md`.
 
 ## [2026-04-20]

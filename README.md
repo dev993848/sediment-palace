@@ -39,3 +39,5 @@ CI workflow runs all three gates on push and pull requests.
 - `docs/user/03-tools-reference.md`
 - `docs/user/04-troubleshooting.md`
 - `docs/user/05-faq.md`
+- `docs/user/06-mcp-config-examples.md`
+- `AGENT_BOOTSTRAP.md` (recommended system prompt for plug-and-play agent behavior)
