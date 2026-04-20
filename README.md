@@ -52,4 +52,4 @@ CI runs all gates on push and pull requests.
 
 ## Release
 - Latest RC tag: `v0.1.0-rc1`
-- Release notes: `project/releases/v0.1.0-rc1/RELEASE_NOTES.md`
+- For release process, use Git tags and GitHub Releases.

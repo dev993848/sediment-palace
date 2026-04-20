@@ -24,3 +24,5 @@ tests/.tmp/
 .tmp/
 .tmp-testdata/
 pytest-cache-files-*/
+idea/
+project/

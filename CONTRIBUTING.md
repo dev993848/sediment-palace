@@ -7,11 +7,10 @@
 - Avoid fragile shortcuts in core consistency paths.
 
 ## Required Read Before Any Change
-1. `project/PROJECT_OVERVIEW.md`
-2. `project/ARCHITECTURE_AND_STACK.md`
-3. `project/API.md`
-4. Active ADRs in `project/adr/`
-5. `project/AGENT_WORK_RULES.md`
+1. `README.md`
+2. `docs/en/README.md` (or `docs/ru/README.md`)
+3. `docs/en/user/03-tools-reference.md`
+4. `AGENT_BOOTSTRAP.md`
 
 ## Workflow
 1. Set task status to `planned`.
@@ -28,9 +27,8 @@ Each status update must include:
 
 ## Documentation Requirements
 For every merged change:
-- Update `project/API.md` if API behavior changed.
-- Update architecture docs if boundaries/policies changed.
-- Create or update ADR for architectural decisions.
+- Update user docs (`docs/en/user` and/or `docs/ru/user`) if behavior changed.
+- Update `README.md` when setup/runtime behavior changes.
 - Add changelog entry in `CHANGELOG.md`.
 
 ## Testing Requirements

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sediment-palace-mcp"
 version = "0.1.0"
 description = "Local-first memory MCP server with sedimentation model"
-readme = "project/PROJECT_OVERVIEW.md"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "pyyaml>=6.0",
