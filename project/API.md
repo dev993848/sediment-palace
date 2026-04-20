@@ -39,6 +39,12 @@
 - Scans operation journal for unresolved operations.
 - Appends recovery completion events with `recovery_status`.
 
+10. `get_metrics()`  `implemented in MVP`
+- Returns per-tool telemetry counters:
+  - `count`, `success`, `error`
+  - `total_duration_ms`, `avg_duration_ms`
+  - `errors_by_code`
+
 ## Error Model (required fields)
 - `error_code`
 - `message`

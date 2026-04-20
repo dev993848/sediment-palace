@@ -34,6 +34,7 @@ Modular monolith with clear boundaries:
 - Structured logs.
 - Audit trail for destructive ops.
 - Metrics: files scanned, promoted, archived, deleted, duration.
+- Transport telemetry with per-tool success/error counters and latency aggregates.
 
 6. Policy Engine
 - Config-driven policy in `memory/_System/policy.yaml`.

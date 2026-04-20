@@ -14,6 +14,8 @@ memory/_System/backups/
 memory/_System/locks/
 memory/_System/journal.log
 memory/_System/policy_events.log
+memory/_System/telemetry.log
+memory/_System/metrics.json
 memory/_Archive/
 memory/
 memory/02_Sediment/_Graveyard/

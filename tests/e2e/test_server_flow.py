@@ -209,3 +209,47 @@ def test_transport_input_budget():
     )
     assert response["result"]["isError"] is True
     assert response["result"]["error"]["error_code"] == "budget_exceeded"
+
+
+def test_tool_telemetry_and_metrics_snapshot():
+    server = SedimentPalaceServer(project_root=_new_project_root())
+    server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 50,
+            "method": "tools/call",
+            "params": {"name": "read_map", "arguments": {}},
+        }
+    )
+    server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 51,
+            "method": "tools/call",
+            "params": {"name": "write_memory", "arguments": {"layer": "shallow", "path": "ideas/m", "content": "m"}},
+        }
+    )
+    server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 52,
+            "method": "tools/call",
+            "params": {"name": "purge_memory", "arguments": {"path": "01_Shallow/ideas/m.md"}},
+        }
+    )  # expected error due to policy
+
+    metrics_response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 53,
+            "method": "tools/call",
+            "params": {"name": "get_metrics", "arguments": {}},
+        }
+    )
+    data = metrics_response["result"]["data"]
+    assert "read_map" in data
+    assert data["read_map"]["success"] >= 1
+    assert "write_memory" in data
+    assert data["write_memory"]["success"] >= 1
+    assert "purge_memory" in data
+    assert data["purge_memory"]["error"] >= 1

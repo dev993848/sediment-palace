@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+import time
 from pathlib import Path
 from typing import Any
 
@@ -9,12 +10,14 @@ from sediment_palace.domain.errors import SedimentPalaceError
 from sediment_palace.infrastructure.filesystem_memory_repository import (
     FileSystemMemoryRepository,
 )
+from sediment_palace.infrastructure.telemetry import TelemetryRecorder
 
 
 class SedimentPalaceServer:
     def __init__(self, project_root: Path) -> None:
         repository = FileSystemMemoryRepository(project_root=project_root)
         self.service = MemoryService(repository=repository)
+        self.telemetry = TelemetryRecorder(system_root=repository.system_root)
         self.tool_timeouts_seconds: dict[str, float] = {
             "read_map": 1.0,
             "write_memory": 2.0,
@@ -53,16 +56,29 @@ class SedimentPalaceServer:
                 params = request.get("params", {})
                 tool_name = params.get("name")
                 arguments = params.get("arguments", {})
-                self._validate_budgets(tool_name=tool_name, arguments=arguments)
-                result = self._execute_with_timeout(tool_name=tool_name, arguments=arguments)
-                summary = f"{tool_name}:ok"
-                return self._ok(
-                    request_id,
-                    {
-                        "content": [{"type": "text", "text": summary}],
-                        "data": result,
-                    },
-                )
+                started = time.perf_counter()
+                try:
+                    self._validate_budgets(tool_name=tool_name, arguments=arguments)
+                    result = self._execute_with_timeout(tool_name=tool_name, arguments=arguments)
+                    duration_ms = (time.perf_counter() - started) * 1000.0
+                    self.telemetry.record(tool_name=str(tool_name), status="success", duration_ms=duration_ms)
+                    summary = f"{tool_name}:ok"
+                    return self._ok(
+                        request_id,
+                        {
+                            "content": [{"type": "text", "text": summary}],
+                            "data": result,
+                        },
+                    )
+                except SedimentPalaceError as exc:
+                    duration_ms = (time.perf_counter() - started) * 1000.0
+                    self.telemetry.record(
+                        tool_name=str(tool_name),
+                        status="error",
+                        duration_ms=duration_ms,
+                        error_code=exc.error_code,
+                    )
+                    raise
             return self._err(request_id, "method_not_found", f"method not found: {method}")
         except SedimentPalaceError as exc:
             payload = {
@@ -167,6 +183,8 @@ class SedimentPalaceServer:
                 confirm=bool(arguments.get("confirm", False)),
             )
             return response
+        if tool_name == "get_metrics":
+            return self.telemetry.snapshot()
         raise SedimentPalaceError(
             error_code="tool_not_found",
             message=f"tool not found: {tool_name}",
@@ -298,6 +316,11 @@ class SedimentPalaceServer:
                     },
                     "required": ["path"],
                 },
+            },
+            {
+                "name": "get_metrics",
+                "description": "Return telemetry counters and duration aggregates per tool",
+                "inputSchema": {"type": "object", "properties": {}},
             },
         ]
 

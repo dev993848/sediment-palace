@@ -32,6 +32,8 @@
 - transport-level input budgets and per-tool timeout enforcement
 - streak-aware metabolize transitions with decaying intermediate state
 - structured `tools/call` responses (`result.data` / `result.error`) replacing string payload parsing
+- per-tool telemetry recorder with counters and duration aggregates
+- `get_metrics` tool for runtime telemetry snapshot
 - Added tests:
 - unit: frontmatter parsing/serialization
 - integration: filesystem repository behaviors
@@ -39,8 +41,8 @@
 
 ## Validation
 - Command: `pytest -q`
-- Result: `19 passed`
+- Result: `20 passed`
 
 ## Next
-- add per-tool telemetry (duration/result/error counters).
 - introduce property-based tests for metabolize invariants.
+- add tool-level tracing correlation IDs across journal + telemetry.
