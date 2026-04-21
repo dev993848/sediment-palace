@@ -4,15 +4,19 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+from uuid import uuid4
 
 from sediment_palace.application.memory_service import MemoryService
 from sediment_palace.config import AppConfig, load_config
 from sediment_palace.domain.errors import SedimentPalaceError
+from sediment_palace.domain.models import LayerName
 from sediment_palace.infrastructure.filesystem_memory_repository import (
     FileSystemMemoryRepository,
 )
 from sediment_palace.infrastructure.telemetry import TelemetryRecorder
+
+_VALID_LAYERS = frozenset({"shallow", "sediment", "bedrock"})
 
 
 class SedimentPalaceServer:
@@ -43,15 +47,18 @@ class SedimentPalaceServer:
             "purge_memory.reason": self.config.purge_reason_budget,
         }
 
-    def handle_request(self, request: dict[str, Any]) -> dict[str, Any]:
+    def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
         request_id = request.get("id")
         method = request.get("method")
         try:
+            # Notifications have no "id" — must not send a response
+            if request_id is None:
+                return None
             if method == "initialize":
                 return self._ok(
                     request_id,
                     {
-                        "protocolVersion": "0.1.0",
+                        "protocolVersion": "2024-11-05",
                         "capabilities": {"tools": {}},
                         "serverInfo": {"name": "sediment-palace", "version": "0.1.0"},
                     },
@@ -108,8 +115,8 @@ class SedimentPalaceServer:
         if tool_name == "read_map":
             return {"map": self.service.read_map()}
         if tool_name == "write_memory":
-            layer = arguments.get("layer", "shallow")
-            path = arguments.get("path", "entry.md")
+            layer = self._require_layer(arguments.get("layer", "shallow"), "layer")
+            path = arguments.get("path") or f"entry_{uuid4().hex[:8]}.md"
             content = arguments.get("content")
             if not content:
                 raise SedimentPalaceError(
@@ -142,12 +149,13 @@ class SedimentPalaceServer:
             return self.service.search_room(room=room, query=query)
         if tool_name == "move_file":
             source = arguments.get("source")
-            dest_layer = arguments.get("dest_layer")
-            if not source or not dest_layer:
+            raw_dest_layer = arguments.get("dest_layer")
+            if not source or not raw_dest_layer:
                 raise SedimentPalaceError(
                     error_code="invalid_arguments",
                     message="move_file requires source and dest_layer",
                 )
+            dest_layer = self._require_layer(raw_dest_layer, "dest_layer")
             return self.service.move_file(
                 source=source,
                 dest_layer=dest_layer,
@@ -228,6 +236,15 @@ class SedimentPalaceServer:
                     message=f"input budget exceeded for {tool_name}.{budget_field}",
                     context={"max_size": max_size, "actual_size": len(str(value))},
                 )
+
+    def _require_layer(self, value: Any, field: str) -> LayerName:
+        if value not in _VALID_LAYERS:
+            raise SedimentPalaceError(
+                error_code="invalid_arguments",
+                message=f"invalid {field}: {value!r}",
+                context={"valid_layers": sorted(_VALID_LAYERS)},
+            )
+        return cast(LayerName, value)
 
     def _tool_schemas(self) -> list[dict[str, Any]]:
         return [

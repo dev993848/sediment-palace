@@ -19,8 +19,9 @@ def main() -> int:
         except json.JSONDecodeError:
             continue
         response = server.handle_request(request)
-        print(json.dumps(response, ensure_ascii=False))
-        sys.stdout.flush()
+        if response is not None:
+            print(json.dumps(response, ensure_ascii=False))
+            sys.stdout.flush()
     return 0
 
 

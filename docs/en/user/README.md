@@ -3,6 +3,7 @@
 This section describes how to use SedimentPalace MCP as an end user.
 
 ## Contents
+- `start/README.md` — workspace initializer (recommended first step)
 - `docs/en/user/01-getting-started.md`
 - `docs/en/user/02-daily-workflows.md`
 - `docs/en/user/03-tools-reference.md`

@@ -59,7 +59,10 @@ class OperationJournal:
         for line in self.path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
-            raw = json.loads(line)
+            try:
+                raw = json.loads(line)
+            except (json.JSONDecodeError, ValueError):
+                continue
             events.append(
                 JournalEvent(
                     timestamp=str(raw.get("timestamp", "")),

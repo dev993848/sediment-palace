@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "sediment_palace": {
+      "command": "python",
+      "args": [
+        "-m",
+        "sediment_palace.main"
+      ],
+      "env": {
+        "SEDIMENT_PROJECT_ROOT": "D:\\PersonalAI\\Memory"
+      }
+    }
+  }
+}

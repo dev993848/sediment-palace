@@ -11,3 +11,4 @@
 
 ## Agent Setup
 - `docs/en/agent-quickstart.md`
+- `start/README.md` (initializer and local config generation)

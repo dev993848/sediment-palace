@@ -1,3 +1,19 @@
+Metadata-Version: 2.4
+Name: sediment-palace-mcp
+Version: 0.1.0
+Summary: Local-first memory MCP server with sedimentation model
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: pyyaml>=6.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.2; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"
+Requires-Dist: hypothesis>=6.100; extra == "dev"
+Requires-Dist: ruff>=0.6.0; extra == "dev"
+Requires-Dist: mypy>=1.11.0; extra == "dev"
+Dynamic: license-file
+
 # SedimentPalace MCP
 
 SedimentPalace MCP is a local-first memory engine for AI agents with layered sedimentation, policy controls, journaling, recovery, and telemetry.
@@ -15,25 +31,6 @@ SedimentPalace MCP is a local-first memory engine for AI agents with layered sed
 python -m pip install -e ".[dev]"
 pytest -q
 python -m sediment_palace.main
-```
-
-## Project Bootstrap (Recommended)
-Initialize a target workspace with local agent configs, memory folders, and instruction files:
-
-```bat
-start.bat --workspace D:\Projects\MyWork --agents codex,claude,qwen,opencode,kimi
-```
-
-What this creates in the workspace:
-- `memory/` layout (`01_Shallow`, `02_Sediment`, `03_Bedrock`, `_System`, `_Archive`, `PALACE_MAP.md`)
-- `AGENT_BOOTSTRAP.md`
-- Agent instruction files (for selected agents): `AGENTS.md`, `CODEX.md`, `CLAUDE.md`, `QWEN.md`, `OPENCODE.md`, `KIMI.md`
-- Local agent config files (`.codex/config.toml`, `.qwen/settings.json`, `.opencode/opencode.json`, `.kimi/settings.json`, `.mcp.json`)
-
-Global config mode is optional:
-
-```bat
-start.bat --scope global --workspace D:\Projects\MyWork --agents codex,claude
 ```
 
 ## Runtime Configuration

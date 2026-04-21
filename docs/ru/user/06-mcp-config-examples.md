@@ -1,22 +1,27 @@
 # 06. Примеры MCP Конфигурации
 
-## Шаблон
-```json
-{
-  "mcpServers": {
-    "sediment_palace": {
-      "command": "python",
-      "args": ["-m", "sediment_palace.main"],
-      "cwd": "/absolute/path/to/project",
-      "env": {
-        "SEDIMENT_PROJECT_ROOT": "/absolute/path/to/project"
-      }
-    }
-  }
-}
+## Рекомендуемый путь: автогенерация локальных конфигов
+Используйте инициализатор, чтобы сгенерировать локальные конфиги агентов в workspace:
+
+```bat
+start.bat --workspace D:\Projects\MyWork --agents codex,claude,qwen,opencode,kimi
 ```
 
-## Windows
+Будут созданы:
+- `.codex/config.toml`
+- `.qwen/settings.json`
+- `.opencode/opencode.json`
+- `.kimi/settings.json`
+- `.mcp.json` (локальный MCP-конфиг в стиле Claude)
+
+## Глобальный режим (опционально)
+Если нужно писать в глобальные пользовательские конфиги:
+
+```bat
+start.bat --scope global --workspace D:\Projects\MyWork --agents codex,claude
+```
+
+## Универсальный stdio-конфиг (ручной fallback)
 ```json
 {
   "mcpServers": {
@@ -25,23 +30,7 @@
       "args": ["-m", "sediment_palace.main"],
       "cwd": "D:\\Projects\\Memory",
       "env": {
-        "SEDIMENT_PROJECT_ROOT": "D:\\Projects\\Memory"
-      }
-    }
-  }
-}
-```
-
-## Linux/macOS
-```json
-{
-  "mcpServers": {
-    "sediment_palace": {
-      "command": "python3",
-      "args": ["-m", "sediment_palace.main"],
-      "cwd": "/home/user/Memory",
-      "env": {
-        "SEDIMENT_PROJECT_ROOT": "/home/user/Memory"
+        "SEDIMENT_PROJECT_ROOT": "D:\\Projects\\MyWork"
       }
     }
   }

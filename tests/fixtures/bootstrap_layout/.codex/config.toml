@@ -1,0 +1,7 @@
+[mcp_servers.sediment_palace]
+command = "python"
+args = [ "-m", "sediment_palace.main" ]
+cwd = "D:\\Projects\\Memory"
+
+[mcp_servers.sediment_palace.env]
+SEDIMENT_PROJECT_ROOT = "D:\\Projects\\Memory\\tests\\fixtures\\bootstrap_layout"

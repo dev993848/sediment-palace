@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from conftest import make_workdir
+
 from sediment_palace.domain.errors import SedimentPalaceError
 from sediment_palace.domain.frontmatter import compose_frontmatter, split_frontmatter
 from sediment_palace.domain.models import utc_now
@@ -61,6 +62,26 @@ def test_path_traversal_blocked():
             tags=[],
             source_session="test",
         )
+    assert exc.value.error_code == "path_violation"
+
+
+def test_path_prefix_escape_blocked_for_target_layer():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    with pytest.raises(SedimentPalaceError) as exc:
+        repo.write_memory(
+            layer="shallow",
+            path="../01_Shallow2/evil",
+            content="x",
+            tags=[],
+            source_session="test",
+        )
+    assert exc.value.error_code == "path_violation"
+
+
+def test_path_prefix_escape_blocked_for_memory_root():
+    repo = FileSystemMemoryRepository(project_root=_new_project_root())
+    with pytest.raises(SedimentPalaceError) as exc:
+        repo.read_memory(path="../memory_evil/owned.md")
     assert exc.value.error_code == "path_violation"
 
 

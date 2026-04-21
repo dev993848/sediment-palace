@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "sediment_palace": {
+      "command": "python",
+      "args": [
+        "-m",
+        "sediment_palace.main"
+      ],
+      "env": {
+        "SEDIMENT_PROJECT_ROOT": "D:\\Projects\\Memory\\tests\\fixtures\\instr_sync"
+      },
+      "type": "stdio"
+    }
+  }
+}

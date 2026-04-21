@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from sediment_palace.domain.models import LayerName
-from sediment_palace.infrastructure.filesystem_memory_repository import (
-    FileSystemMemoryRepository,
-)
+from sediment_palace.domain.repository import MemoryRepository
 
 
 class MemoryService:
-    def __init__(self, repository: FileSystemMemoryRepository) -> None:
+    def __init__(self, repository: MemoryRepository) -> None:
         self.repository = repository
 
     def read_map(self) -> str:

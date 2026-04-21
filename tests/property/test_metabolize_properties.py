@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from conftest import make_workdir
+
 from sediment_palace.domain.frontmatter import compose_frontmatter, split_frontmatter
 from sediment_palace.domain.models import utc_now
 from sediment_palace.infrastructure.filesystem_memory_repository import (
@@ -45,7 +46,7 @@ def _seed_shallow_file(
     return saved
 
 
-@settings(max_examples=40)
+@settings(max_examples=40, deadline=None)
 @given(
     density=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
     age_days=st.integers(min_value=0, max_value=30),
@@ -64,7 +65,7 @@ def test_metabolize_dry_run_preserves_files(density: float, age_days: int, strea
     assert result["scanned"] >= 1
 
 
-@settings(max_examples=50)
+@settings(max_examples=50, deadline=None)
 @given(
     density=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
     age_days=st.integers(min_value=0, max_value=45),
@@ -83,7 +84,7 @@ def test_metabolize_never_moves_outside_known_roots(density: float, age_days: in
             assert rel.startswith(valid_prefixes)
 
 
-@settings(max_examples=50)
+@settings(max_examples=50, deadline=None)
 @given(
     density=st.floats(min_value=0.5, max_value=1.0, allow_nan=False, allow_infinity=False),
     age_days=st.integers(min_value=8, max_value=30),

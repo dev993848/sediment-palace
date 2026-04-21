@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import os
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -17,12 +19,21 @@ class FileLockManager:
     def lock(self, lock_name: str, *, timeout_seconds: float = 5.0):
         lock_file = self.lock_root / f"{self._sanitize(lock_name)}.lock"
         started = time.monotonic()
-        while lock_file.exists():
+        while True:
+            try:
+                # O_CREAT|O_EXCL is atomic: exactly one caller succeeds
+                fd = os.open(str(lock_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.close(fd)
+                break
+            except FileExistsError:
+                pass
+            except OSError:
+                pass
+            # remove stale lock left by a crashed process
             try:
                 age_seconds = time.time() - lock_file.stat().st_mtime
                 if age_seconds > self.stale_after_seconds:
                     lock_file.unlink(missing_ok=True)
-                    break
             except OSError:
                 pass
             if time.monotonic() - started > timeout_seconds:
@@ -33,12 +44,11 @@ class FileLockManager:
                     context={"lock_name": lock_name, "timeout_seconds": timeout_seconds},
                 )
             time.sleep(0.05)
-
-        lock_file.write_text("1", encoding="utf-8")
         try:
             yield
         finally:
             lock_file.unlink(missing_ok=True)
 
     def _sanitize(self, value: str) -> str:
-        return value.replace("\\", "_").replace("/", "_").replace(":", "_")
+        # hash avoids Windows filename character restrictions and length limits
+        return hashlib.sha256(value.encode()).hexdigest()[:32]

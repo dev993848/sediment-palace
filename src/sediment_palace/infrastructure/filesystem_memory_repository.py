@@ -45,6 +45,8 @@ class FileSystemMemoryRepository:
         self.archive_root.mkdir(parents=True, exist_ok=True)
         if not self.map_file.exists():
             self.map_file.write_text("# PALACE MAP\n", encoding="utf-8")
+        for tmp in self.memory_root.rglob("*.md.tmp"):
+            tmp.unlink(missing_ok=True)
 
     def read_map(self) -> str:
         self.ensure_layout()
@@ -141,6 +143,7 @@ class FileSystemMemoryRepository:
             search_root = self.memory_root / LAYER_DIRS[layer]
 
         matches: list[dict[str, str]] = []
+        max_matches = self.policy.max_search_matches()
         for md_file in search_root.rglob("*.md"):
             raw = md_file.read_text(encoding="utf-8")
             metadata, body = split_frontmatter(raw)
@@ -152,6 +155,8 @@ class FileSystemMemoryRepository:
                         "snippet": body.strip()[:200],
                     }
                 )
+                if len(matches) >= max_matches:
+                    break
         return {"query": query, "layer": layer, "matches": matches}
 
     def search_room(self, *, room: str, query: str) -> dict[str, object]:
@@ -507,7 +512,7 @@ class FileSystemMemoryRepository:
         if rel.suffix.lower() != ".md":
             rel = rel.with_suffix(".md")
         candidate = (layer_dir / rel).resolve()
-        if not str(candidate).startswith(str(layer_dir.resolve())):
+        if not self._is_within(candidate, layer_dir.resolve()):
             raise SedimentPalaceError(
                 error_code="path_violation",
                 message="target path escapes layer boundary",
@@ -517,13 +522,20 @@ class FileSystemMemoryRepository:
 
     def _resolve_path_in_memory(self, relative_path: str) -> Path:
         candidate = (self.memory_root / relative_path).resolve()
-        if not str(candidate).startswith(str(self.memory_root)):
+        if not self._is_within(candidate, self.memory_root):
             raise SedimentPalaceError(
                 error_code="path_violation",
                 message="path escapes memory root",
                 context={"path": relative_path},
             )
         return candidate
+
+    def _is_within(self, candidate: Path, root: Path) -> bool:
+        try:
+            candidate.relative_to(root)
+            return True
+        except ValueError:
+            return False
 
     def _read_entry_if_exists(self, file_path: Path) -> MemoryEntry | None:
         if not file_path.exists():

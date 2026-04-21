@@ -8,3 +8,6 @@
 - `docs/ru/user/04-troubleshooting.md`
 - `docs/ru/user/05-faq.md`
 - `docs/ru/user/06-mcp-config-examples.md`
+
+## Инициализация и автоконфиг
+- `start/README.md`

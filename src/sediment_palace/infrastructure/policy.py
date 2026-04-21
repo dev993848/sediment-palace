@@ -72,8 +72,22 @@ class PolicyEngine:
         return loaded
 
     def _append_event(self, event: dict[str, Any]) -> None:
-        with self.events_file.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        window_seconds = int(self._load_policy().get("rate_limit", {}).get("window_seconds", 60))
+        cutoff = float(event.get("timestamp", time.time())) - window_seconds
+        kept: list[str] = []
+        for line in self.events_file.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                payload = json.loads(line)
+                if float(payload.get("timestamp", 0)) > cutoff:
+                    kept.append(line)
+            except (ValueError, json.JSONDecodeError):
+                continue
+        kept.append(json.dumps(event, ensure_ascii=False))
+        tmp = self.events_file.parent / (self.events_file.name + ".tmp")
+        tmp.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        tmp.replace(self.events_file)
 
     def _count_recent_destructive_events(self, *, now: float, window_seconds: int) -> int:
         count = 0

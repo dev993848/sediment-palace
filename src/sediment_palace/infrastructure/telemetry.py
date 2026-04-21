@@ -52,7 +52,9 @@ class TelemetryRecorder:
             error_buckets = tool_metrics.setdefault("errors_by_code", {})
             error_buckets[error_code] = int(error_buckets.get(error_code, 0)) + 1
 
-        self.metrics_file.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp = self.metrics_file.parent / (self.metrics_file.name + ".tmp")
+        tmp.write_text(json.dumps(metrics, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(self.metrics_file)
 
     def snapshot(self) -> dict[str, Any]:
         return self._read_metrics()

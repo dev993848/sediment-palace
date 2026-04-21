@@ -1,18 +1,32 @@
 # 01. Getting Started
 
-## 1) Install
+## Recommended: one-command initializer
+From repository root, run:
+
+```bat
+start.bat --workspace D:\Projects\MyWork --agents codex,claude,qwen,opencode,kimi
+```
+
+This will:
+- install/check Python dependencies,
+- create `memory/` structure in the target workspace,
+- sync `AGENT_BOOTSTRAP.md`,
+- generate agent instruction files (`AGENTS.md`, `CLAUDE.md`, `QWEN.md`, etc.),
+- generate local agent configs in the workspace.
+
+## Manual install (if needed)
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-## 2) Run the server
+## Manual run (debug mode)
 ```bash
 python -m sediment_palace.main
 ```
 
 The server reads JSON-RPC from `stdin` and writes responses to `stdout`.
 
-## 3) First checks
+## First checks
 Run, in order:
 1. `initialize`
 2. `tools/list`
